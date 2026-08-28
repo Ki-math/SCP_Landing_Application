@@ -68,6 +68,12 @@ kVel    = gp('velFB', 0);         % 鉛直速度FBゲイン [1/s]. 高度整合�
                                   % 系統的ブレーキ不足を10ms層で補償. refSync='alt'向け)
 velTrig = gp('velTrig', inf);     % 再計画トリガの速度誤差 [m/s] (大偏差は非線形再計画で処理)
 reAltMin= gp('reAltMin', 220);    % 再計画を許す最低高度 (接地高度からの余裕) [m]
+cutAlt  = gp('cutoffAlt', 0);     % エンジンカットオフ判定高度 (接地高度からの余裕) [m].
+                                  % ホバー不能機 (T/W_min>1) が接地前に減速し切ると
+                                  % 降下再開できず上昇暴走する. この高度以下で鉛直速度が
+                                  % cutoffV 以上 (ほぼ停止/上昇) なら機関停止して落下着地
+                                  % (実機ホバースラムと同じ運用). 0=無効
+cutV    = gp('cutoffV', -0.5);    % カットオフ判定の鉛直速度しきい値 [m/s] (上+)
 dr0  = gp('dr0',  [0;0;0]);       % 初期位置オフセット [m] (既定ゼロ. GUI/JSON/MCSで指定)
 dvB0 = gp('dvB0', [0;0;0]);       % 初期速度オフセット (機体系) [m/s] (同上)
 dr0 = dr0(:);  dvB0 = dvB0(:);
@@ -108,7 +114,7 @@ qCmd = x0(7:10)/norm(x0(7:10));  Tc = 0;  uMPC = zeros(7,1);  Tint = 0;  dvF = 0
 log.t=[]; log.x=[]; log.u=[]; log.qpT=[]; log.st={};
 rp.n=0; rp.ok=0; rp.time=[]; rp.t=[];
 [hTab,tTab] = altTable(refD, sc);                   %% 高度→参照時刻 の逆引き表
-nStep = round(tEnd/dtP);  lastRe = -inf;  navDone = false;
+nStep = round(tEnd/dtP);  lastRe = -inf;  navDone = false;  cutDone = false;
 for s = 0:nStep-1
     if strcmpi(refSync,'alt')
         %% 点火ディスパッチ: 参照を高度で引く. 機体が計画より速い/遅い場合も
@@ -221,6 +227,15 @@ for s = 0:nStep-1
         u = [act.Tm*[1; act.d(1); act.d(2)]/cfg.Fs; act.f];
         if Tc < 1e3, u(1:3) = 0; end                  % エンジン停止中
     end
+    %% --- エンジンカットオフ (ホバースラム: 低高度で停止したら落下着地) ---
+    if cutAlt > 0 && ~cutDone && engNow > 0 && x(1)*sc.L < tdAlt + cutAlt
+        qn = x(7:10)/norm(x(7:10));
+        vI1 = (quat2dcm(qn.').'*x(4:6));           % 慣性系速度 (無次元)
+        if vI1(1)*sc.V > cutV
+            cutDone = true;                         % ラッチ (以降は機関停止)
+        end
+    end
+    if cutDone, u(1:3) = 0; end
     %% --- プラント 10 ms ---
     k1=plant(x,u); k2=plant(x+hP/2*k1,u); k3=plant(x+hP/2*k2,u); k4=plant(x+hP*k3,u);
     x = x + hP/6*(k1+2*k2+2*k3+k4);

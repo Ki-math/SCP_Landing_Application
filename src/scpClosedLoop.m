@@ -17,6 +17,7 @@ if isfield(prob,'velFBi') && ~isfield(prm,'velFBi'), prm.velFBi = prob.velFBi; e
 if isfield(prob,'latFreezeAlt') && ~isfield(prm,'latFreezeAlt'), prm.latFreezeAlt = prob.latFreezeAlt; end
 if isfield(prob,'errTrig') && ~isfield(prm,'errTrig'), prm.errTrig = prob.errTrig; end
 if isfield(prob,'windProf') && ~isfield(prm,'windProf'), prm.windProf = prob.windProf; end
+if isfield(prob,'cutoffAlt') && ~isfield(prm,'cutoffAlt'), prm.cutoffAlt = prob.cutoffAlt; end
 %% 機体既定の制御方式 (prm.ctlMode の明示指定が優先)
 if isfield(prob,'ctlModeForce') && ~isempty(prob.ctlModeForce) && ~isfield(prm,'ctlMode')
     prm.ctlMode = prob.ctlModeForce;

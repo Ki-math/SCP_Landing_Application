@@ -361,14 +361,19 @@ prob = scpWindTune(prob);
 | `tauFlap` | 0.20 | 方式2: 舵面の1次遅れ時定数 [s] |
 | `actRateLim` | false | 方式2: アクチュエータの**スルーレート飽和**を有効化（機体諸元 tvcRate/flapRate でハード制限）。既定は遅れ動特性のみ。**注意**: 現行の姿勢内ループ設計では tvcRate≥40°/s・flapRate≥30°/s 程度がないと閉ループが成立しない（実測。テンプレート諸元 20/15°/s のまま有効化すると発散） |
 | `refSync` | 'time' | 参照同期。'alt'=高度で参照を引く（ホバースラムの点火タイミング分散を吸収） |
+| `cutoffAlt` | 0（falcon9テンプレート=60） | エンジンカットオフ判定高度 [m]（接地高度からの余裕）。ホバー不能機（T/W_min>1）は接地前に減速し切ると降下再開できず上昇暴走→墜落する。この高度以下でほぼ停止したら機関停止して落下着地する（実機ホバースラムと同じ運用。分散時の墜落 −52 m/s → 落下 −12 m/s 程度に緩和、実測）。0=無効 |
+| `cutoffV` | −0.5 | カットオフ判定の鉛直速度しきい値 [m/s]（これ以上=ほぼ停止/上昇で発動） |
 | `velFB` / `velFBi` | 0 / 0 | 鉛直速度FBの比例/積分ゲイン（ホバー不能機のブレーキ補償） |
 | `latFreezeAlt` | 0=無効 | 着陸コミット高度 [m]。以下で横推力を姿勢レートダンピング専用に切替 |
 | `dtMpc` | track.dtCtrl (0.10) | 追従MPCの実行周期 [s]（dtPlantの整数倍に丸め）。予測の刻み `track.dt` とは別物。既定値は `track6Options.dtCtrl` に一元化 |
 | `dtPlant` | track.dtPlant (0.01) | プラント積分と10ms層（速度FB・姿勢内ループ・アクチュエータ）の刻み [s] |
 | `noSave` / `noPlot` | 0 / 0 | 保存/描画の抑制 |
 
-`refSync, velFB, velFBi, latFreezeAlt, ctlMode` は機体テンプレート（scpProblem）から
-自動で引き継がれるため、通常は外乱系（thrEff, windY, dr0...）だけ指定すれば十分です。
+`refSync, velFB, velFBi, latFreezeAlt, ctlMode, errTrig, cutoffAlt` は機体テンプレート
+（scpProblem）から自動で引き継がれるため、通常は外乱系（thrEff, windY, dr0...）だけ
+指定すれば十分です。なお**MCSの変動定義ファイルは機体専用**です（機体諸元を絶対値で
+振るため、他機体のファイルを使うと質量等が丸ごと入れ替わり全ラン失敗します。GUIは
+機体切替でファイル選択が自動追随し、不一致時は警告します）。
 
 ### MCS変動定義（config/dispersions_*.m / .json）
 

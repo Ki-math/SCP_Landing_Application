@@ -76,6 +76,7 @@ case 'starship'
                                     % 過敏発火で姿勢を乱す (25mではMCS成功2/8 ->
                                     % 60mで8/8, 接地傾斜 max13.4 -> 3.7deg)
     prob.okCrit = struct('horiz',30,'vz',5,'tilt',10);   % MCS成功判定 (ミッション要求)
+    prob.cutoffAlt = 0;             % エンジンカットオフ無効 (ホバー可能機には不要)
 
 case 'falcon9'
     cfg = scpk.modelFalcon9(vehOv);
@@ -134,6 +135,13 @@ case 'falcon9'
     prob.okCrit = struct('horiz',20,'vz',8,'tilt',5);    % MCS成功判定 (ミッション要求.
                                     % ホバー不能機の接地速度はクラッシュコア等での
                                     % 吸収を想定し 8 m/s とする)
+    prob.errTrig = 60;              % 再計画トリガ [m]: ホバースラム燃焼中の参照引き直しは
+                                    % 姿勢を乱し転倒に至る (25mでMCSに墜落級が発生, 実測).
+                                    % 追従で吸収できる偏差では発火させない
+    prob.cutoffAlt = 60;            % エンジンカットオフ [m]: T/W_min~1.9 のため接地前に
+                                    % 減速し切ると上昇暴走する. 接地高度+60m以下でほぼ
+                                    % 停止したら機関停止して落下着地 (実機と同じ運用.
+                                    % 墜落級 -52m/s -> 落下接地 ~-10m/s に緩和, 実測)
 
 otherwise
     error('未知の機体: %s (starship / falcon9)', vehicle);

@@ -49,6 +49,7 @@ if isfield(prob,'ctlModeForce') && ~isempty(prob.ctlModeForce) && ~isfield(prm,'
 if isfield(prob,'okCrit') && ~isfield(prm,'okCrit'), prm.okCrit = prob.okCrit; end
 if isfield(prob,'errTrig') && ~isfield(prm,'errTrig'), prm.errTrig = prob.errTrig; end
 if isfield(prob,'windProf') && ~isfield(prm,'windProf'), prm.windProf = prob.windProf; end
+if isfield(prob,'cutoffAlt') && ~isfield(prm,'cutoffAlt'), prm.cutoffAlt = prob.cutoffAlt; end
 
 out = runMCS_scp(dispFile, N, seed, prm);
 end

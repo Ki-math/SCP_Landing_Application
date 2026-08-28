@@ -287,7 +287,10 @@ function setDefaults()
     else
         W.ctl.Value = '方式1: MPC直接';
     end
-    W.dspT.Data = dspCatalog(dspDefaultFile());   % MCS変動表: 全パラメータ一覧+機体既定
+    dfnV = dspDefaultFile();                      % 変動定義ファイルも機体に追随させる
+    if ~isempty(dfnV), W.mcsF.Value = dfnV; end   % (他機体の絶対値諸元が混入すると
+                                                  %  T/W<1等で全ラン墜落する. 実測)
+    W.dspT.Data = dspCatalog(dfnV);               % MCS変動表: 全パラメータ一覧+機体既定
     S.prob = [];  S.sol = [];  S.R = [];
     say(sprintf('機体: %s (諸元/初期条件/計画・制御既定をテンプレート値にリセット)', W.veh.Value));
 end
@@ -399,6 +402,17 @@ function doMCS()
         uialert(fig,'先に [計画] を実行してください','MCS','Icon','warning'); return;
     end
     S.prob.windProf = getWindProf();   % 風は計画に入らないため実行時点の環境タブを反映
+    %% 変動定義ファイルの機体不一致ガード (他機体の絶対値諸元は全ラン墜落の原因)
+    if strcmp(W.mcsSrc.Value,'ファイル')
+        other = tern(strcmp(W.veh.Value,'starship'), 'falcon9', 'starship');
+        if contains(W.mcsF.Value, other)
+            sel = uiconfirm(fig, sprintf(['選択中の変動定義「%s」は %s 用です。機体諸元が' ...
+                '絶対値で振られるため %s に適用すると全ラン失敗します。続行しますか?'], ...
+                W.mcsF.Value, other, W.veh.Value), 'MCS', ...
+                'Options',{'続行','中止'}, 'DefaultOption',2, 'Icon','warning');
+            if strcmp(sel,'中止'), return; end
+        end
+    end
     d = busy('モンテカルロ', sprintf('MCS %dラン%s: 準備中...%s', ...
         W.mcsN.Value, tern(W.mcsPar.Value,' (並列)',''), ...
         tern(W.mcsPar.Value,' 初回はプール起動に30-60秒かかります','')));
