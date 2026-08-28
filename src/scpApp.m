@@ -49,7 +49,7 @@ gtT = uigridlayout(tabT,[3 1],'RowHeight',{'fit','fit','fit'},'Padding',[4 4 4 4
 tabC = uitab(tgL,'Title','制御');
 gtC = uigridlayout(tabC,[3 1],'RowHeight',{'fit','fit','fit'},'Padding',[4 4 4 4],'RowSpacing',5);
 tabM = uitab(tgL,'Title','MCS');
-gtM = uigridlayout(tabM,[2 1],'RowHeight',{'fit','1x'},'Padding',[4 4 4 4],'RowSpacing',5);
+gtM = uigridlayout(tabM,[3 1],'RowHeight',{'fit','fit','1x'},'Padding',[4 4 4 4],'RowSpacing',5);
 tabP = uitab(tgL,'Title','再生');
 gtP = uigridlayout(tabP,[1 1],'RowHeight',{'fit'},'Padding',[4 4 4 4],'RowSpacing',5);
 
@@ -208,6 +208,16 @@ ddj = dir(fullfile(proj,'config','dispersions_*.json'));
 items = [cellfun(@(n) n(1:end-2), {ddm.name}, 'Uni',0), {ddj.name}];
 W.mcsF = uidropdown(g5,'Items',items);
 
+%% ---- MCS: 成功判定 (okCrit. 機体切替でテンプレート値にリセット) ----
+p5c = uipanel(gtM,'Title','成功判定 (3条件すべて満たせば成功. サマリ表の色分けにも使用)');
+g5d = uigridlayout(p5c,[1 6],'ColumnWidth',{'fit','1x','fit','1x','fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
+uilabel(g5d,'Text','水平誤差 [m] ≤');   W.okH = uieditfield(g5d,'numeric','Value',30, ...
+    'Tooltip','okCrit.horiz: 接地位置のパッドからの距離');
+uilabel(g5d,'Text','接地速度 [m/s] ≤'); W.okV = uieditfield(g5d,'numeric','Value',5, ...
+    'Tooltip','okCrit.vz: 接地時の速度ベクトルの大きさ |v| (鉛直・水平の合成)');
+uilabel(g5d,'Text','傾斜 [deg] ≤');     W.okT = uieditfield(g5d,'numeric','Value',10, ...
+    'Tooltip','okCrit.tilt: 接地時の機体傾斜角');
+
 %% ---- MCS: 変動定義の表編集 (ソース='GUI表' のとき使用) ----
 p5b = uipanel(gtM,'Title','変動定義 (GUI表. normal系: p1=平均, p2=1σ. 変動なしの行=σ0/上下限同値は実行時に無視)');
 g5b = uigridlayout(p5b,[2 1],'RowHeight',{'fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
@@ -339,6 +349,8 @@ function setDefaults()
     W.wnA.Value = 1.2;  W.ztA.Value = 0.9;  W.tauT.Value = 0.10;
     W.fG.Value = 6;  W.ztG.Value = 0.707;  W.tauF.Value = 0.20;  W.aRL.Value = false;
     W.dtC.Value = pT.track.dtCtrl;  W.dtP.Value = pT.track.dtPlant;
+    okc = gT('okCrit', struct('horiz',30,'vz',5,'tilt',10));   % 成功判定
+    W.okH.Value = okc.horiz;  W.okV.Value = okc.vz;  W.okT.Value = okc.tilt;
     dfnV = dspDefaultFile();                      % 変動定義ファイルも機体に追随させる
     if ~isempty(dfnV), W.mcsF.Value = dfnV; end   % (他機体の絶対値諸元が混入すると
                                                   %  T/W<1等で全ラン墜落する. 実測)
@@ -475,6 +487,7 @@ function doMCS()
         mprm = struct('parallel',W.mcsPar.Value, 'noPlot',1);
         if startsWith(W.ctl.Value,'方式2'), mprm.ctlMode = 'inner'; else, mprm.ctlMode = 'direct'; end
         mprm.errTrig = W.eTr.Value;
+        mprm.okCrit = struct('horiz',W.okH.Value,'vz',W.okV.Value,'tilt',W.okT.Value);
         mprm = ctlPrm(mprm);            % 制御タブの設定を反映
         mprm.progressFcn = @(done,N) setProg(d, done/N, sprintf('ラン %d/%d 完了 (%.0f%%)', done, N, 100*done/N));
         if strcmp(W.mcsSrc.Value,'GUI表')
@@ -550,10 +563,9 @@ function prm = ctlPrm(prm)
 end
 
 function fillTd(tbl, st)
-    %% 接地状態サマリを表に表示. okCrit (成功判定) に照らして色分け:
+    %% 接地状態サマリを表に表示. 成功判定 (MCSタブで編集可) に照らして色分け:
     %% 緑=判定内 / 赤=判定超過 / 白=判定対象外の参考値
-    okc = struct('horiz',30,'vz',5,'tilt',10);
-    if ~isempty(S.prob) && isfield(S.prob,'okCrit'), okc = S.prob.okCrit; end
+    okc = struct('horiz',W.okH.Value,'vz',W.okV.Value,'tilt',W.okT.Value);
     tbl.ColumnName = {'水平誤差 [m]','クロス [m]','DR [m]','鉛直速度 [m/s]', ...
                       '水平速度 [m/s]','傾斜 [deg]','角速度 [deg/s]','残燃料 [t]'};
     tbl.Data = {sprintf('%.1f',st.horiz), sprintf('%.1f',st.cr), sprintf('%.1f',st.dr), ...
@@ -805,8 +817,10 @@ function doGenScript()
             if endsWith(df,'.json'), df = ['fullfile(''config'',''' df ''')']; else, df = ['''' df '''']; end
             L{end+1} = sprintf('    spec = %s;   %% 変動定義ファイル', df);
         end
-        L{end+1} = sprintf('    out = scpMCS(prob, spec, %s, struct(''parallel'',%s));', ...
-            n(W.mcsN.Value), tern(W.mcsPar.Value,'true','false'));
+        L{end+1} = sprintf(['    out = scpMCS(prob, spec, %s, struct(''parallel'',%s, ...\n' ...
+            '        ''okCrit'',struct(''horiz'',%s,''vz'',%s,''tilt'',%s)));'], ...
+            n(W.mcsN.Value), tern(W.mcsPar.Value,'true','false'), ...
+            n(W.okH.Value), n(W.okV.Value), n(W.okT.Value));
         L{end+1} = '    fprintf(''MCS成功率: %.0f%%%%\n'', 100*mean([out.res.ok]));';
         L{end+1} = 'end';
         fid = fopen(fullfile(fp,fn),'w','n','UTF-8');
@@ -884,7 +898,8 @@ function s = gatherSettings()
         ds(ii) = struct('name',Dd{ii,1},'dist',Dd{ii,2},'p1',Dd{ii,3},'p2',Dd{ii,4});
     end
     s.mcs  = struct('N',W.mcsN.Value,'parallel',logical(W.mcsPar.Value), ...
-                    'source',W.mcsSrc.Value,'dispFile',W.mcsF.Value,'disp',ds);
+                    'source',W.mcsSrc.Value,'dispFile',W.mcsF.Value,'disp',ds, ...
+                    'okCrit',struct('horiz',W.okH.Value,'vz',W.okV.Value,'tilt',W.okT.Value));
     s.play = struct('speed',W.spd.Value,'source',W.animSrc.Value);
 end
 
@@ -970,6 +985,10 @@ function applySettings(s)
     W.mcsPar.Value = logical(gs('mcs','parallel',W.mcsPar.Value));
     df = gs('mcs','dispFile','');
     if ~isempty(df) && any(strcmp(W.mcsF.Items, df)), W.mcsF.Value = df; end
+    okj = gs('mcs','okCrit',[]);
+    if ~isempty(okj)
+        W.okH.Value = okj.horiz;  W.okV.Value = okj.vz;  W.okT.Value = okj.tilt;
+    end
     srcM = gs('mcs','source','');
     if any(strcmp(W.mcsSrc.Items, srcM)), W.mcsSrc.Value = srcM; end
     dd = gs('mcs','disp',[]);
