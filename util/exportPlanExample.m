@@ -62,6 +62,14 @@ emitFill(fid,'fill_qp', 'struct4_T',qp);
 emitFill(fid,'fill_tp', 'struct5_T',tp);
 fprintf(fid,'#endif /* PLAN_EXAMPLE_DATA_H */\n');
 fprintf('生成: %s\n', fullfile(outdir,'plan_example_data.h'));
+
+%% 等価性検証 (verifyEmbedded) 用: 同一入力を .mat でも保存
+args = struct('x0nd',x0./sx, 'xT',xT, 'xl',sol.xhat, 'ul',sol.uhat, ...
+    'gl',sol.ghat, 'sigl',sol.sigma/sc.T, 'phase',double(opt.phase), ...
+    'eng',double(opt.engSched), 'dtv',dtv, 'tiltN',opt.tiltMaxNode, ...
+    'cfg',cfg, 'pp',pp, 'qp',qp, 'tp',tp, 'H',topt.H, 'dtMpc',topt.dt, ...
+    'refD',refD);   %#ok<NASGU>
+save(fullfile(proj,'results','plan_example_args.mat'),'-struct','args');
 end
 
 function emitArr(fid,name,A)

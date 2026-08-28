@@ -55,6 +55,7 @@ copyfile(fullfile(cpp,'main_planner_example.c'), fullfile(stg,'examples','main_p
 copyfile(fullfile(cpp,'main_tracker_example.c'), fullfile(stg,'examples','main_tracker_example.c'));
 copyfile(fullfile(cpp,'main_gnc_example.c'),     fullfile(stg,'examples','main_gnc_example.c'));
 copyfile(fullfile(cpp,'main_solver_example.cpp'),fullfile(stg,'examples','main_solver_example.cpp'));
+copyfile(fullfile(cpp,'main_verify.c'),          fullfile(stg,'examples','main_verify.c'));
 copyfile(exdata,                                 fullfile(stg,'examples','plan_example_data.h'));
 
 %% --- README ---

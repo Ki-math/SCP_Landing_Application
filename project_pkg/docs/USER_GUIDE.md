@@ -608,6 +608,7 @@ GUI。機体・初期条件・詳細諸元・環境（大気モデル/パッド�
 | `runClosedLoopReplan(prm)` | 閉ループ本体（scpClosedLoopの実装。単体でも使用可） |
 | `codegenBuild` / `codegenPlanIter` | 生成MEX/Cの再生成（cfg/pp構造を変えた時に実行） |
 | `scpCheckMex` | モデル構造体と生成MEXの整合検査＋自動再生成（scpPlanから毎回自動実行） |
+| `verifyEmbedded` | 組み込みパッケージの等価性検証: zipを展開→gccビルド→実行し、計画1反復・追従MPC1周期の結果をMATLAB参照実装と同一入力で突き合わせ（実測 最大差 ~1e-11、QP反復数完全一致） |
 | `scpPackageProject` | git管理用のプロジェクトzipを作成 |
 
 ---

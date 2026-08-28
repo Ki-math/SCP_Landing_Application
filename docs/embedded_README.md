@@ -194,6 +194,19 @@ util/exportPlanExample.m              % を参考に同形式のヘッダを出�
 | 追従MPC 1周期 (固定300反復, 線形化込み) | ~9-12 ms |
 | GNC統合閉ループの着陸例 (Starship, thrEff 0.97) | 水平 ~7 m / -2.5 m/s / 0.8° |
 
+## 等価性検証
+
+`examples/main_verify.c` は計画1反復と追従MPC 1周期の結果を全桁でファイル出力
+する検証用プログラムです。ホストMATLAB側で `verifyEmbedded` を実行すると、
+本パッケージを展開 → gcc でビルド → 実行し、**同一入力でのMATLAB参照実装との
+数値一致**を自動判定します (実測: 状態軌道 max|diff| ~3e-11, 追従制御 ~5e-12,
+QP反復数は完全一致)。
+
+```
+>> verifyEmbedded
+=== 総合判定: PASS (数値一致) ===
+```
+
 ## 注意
 
 - `gnc/` は生成コードです。修正はホスト側 (scpk.planIterEmb /
