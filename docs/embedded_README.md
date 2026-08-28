@@ -25,18 +25,25 @@ gnc/        GNCコアのフルC実装 (MATLAB Coder 生成, BLASフリー)
               scpk_trackStepEmb (scpk_trackStepEmb.h) 追従MPC 1周期
               dyn               (dynamics6.h)         6自由度力学
             型定義は gncCore_lib_types.h で共有
-guidance/   誘導ロジック部品 (手書き純C, gnc_guidance.h):
-              gnc_ref_*         参照軌道のサンプリング (MPC窓の切り出し)
-              gnc_alt_table / gnc_dispatch_time  点火ディスパッチ
-                                (高度→参照時刻. ホバースラムのタイミング分散吸収)
-              gnc_velfb_*       鉛直速度FB (ホバー不能機のブレーキ補償)
+guidance/   誘導・制御ロジック部品 (手書き純C):
+              gnc_guidance.h    参照サンプリング / 点火ディスパッチ
+                                (高度→参照時刻) / 鉛直速度FB
+              gnc_attitude.h    姿勢内ループ (制御方式2: PD則 wnAtt/ztAtt)
+                                + アクチュエータ動特性 (TVC2次系,
+                                スロットル・舵面1次遅れ, スルーレート飽和)
 solver/     手書きC++ PIPG QPソルバ単体 (pipg_core.hpp, ヘッダオンリー)
             エントリポイント: pipg_solve_csc (Cリンケージ)
 examples/   実データ入りサンプル main
             main_planner_example.c  計画1反復デモ (Starship着陸問題の実データ)
             main_tracker_example.c  追従MPC 1周期デモ
-            main_gnc_example.c      GNC統合閉ループ (参照→MPC→プラントRK4,
-                                    推力効率誤差つきで着陸まで通し実行)
+            main_gnc_example.c      GNC統合閉ループ (完全構成: gnc_loop.h)
+            gnc_loop.h              閉ループ本体. ホストMATLABの閉ループ
+                                    (runClosedLoopReplan) と同一構成:
+                                    点火ディスパッチ→追従MPC→速度FB→
+                                    着陸コミット→内ループ+アクチュエータ
+                                    (方式2時)→カットオフ→プラントRK4.
+                                    制御方式・誘導設定は ex_ctl* 定数
+                                    (機体テンプレート由来) に自動追随
             main_solver_example.cpp ソルバ単体デモ (解析解つき小QP)
             plan_example_data.h     実データ (MATLAB側 exportPlanExample.m が生成)
 README.md   本ファイル
@@ -204,10 +211,13 @@ util/exportPlanExample.m              % を参考に同形式のヘッダを出�
 
 ## 等価性検証
 
-`examples/main_verify.c` は計画1反復と追従MPC 1周期の結果を全桁でファイル出力
-する検証用プログラムです。ホストMATLAB側で `verifyEmbedded` を実行すると、
-本パッケージを展開 → gcc でビルド → 実行し、**同一入力でのMATLAB参照実装との
-数値一致**を自動判定します (実測: 状態軌道 max|diff| ~3e-11, 追従制御 ~5e-12,
+`examples/main_verify.c` は計画1反復・追従MPC 1周期・GNC閉ループ (着陸までの
+シミュレーション) の結果を全桁でファイル出力する検証用プログラムです。ホスト
+MATLAB側で `verifyEmbedded` を実行すると、本パッケージを展開 → gcc でビルド →
+実行し、**MATLAB参照実装との数値一致**を自動判定・プロット表示します。
+閉ループはホストの閉ループ本体 (runClosedLoopReplan) と直接比較され、制御方式も
+機体テンプレートに従います (実測: 状態軌道 ~3e-11, 閉ループ軌跡
+方式1(falcon9) 2.4e-8 m / 方式2(starship, 内ループ+アクチュエータ) 2.5e-9 m,
 QP反復数は完全一致)。
 
 ```

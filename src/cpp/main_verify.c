@@ -25,31 +25,11 @@
 #include "dynamics6.h"
 #include "plan_example_data.h"
 #include "gnc_guidance.h"
+#include "gnc_attitude.h"
 #include <math.h>
+#include "gnc_loop.h"    /* 完全構成のGNC閉ループ (方式1/2, ディスパッチ, 速度FB, カットオフ) */
 
-#define VF_THR_EFF  0.97   /* プラント積分刻みは ex_dtPlant (track6Options.dtPlant) を参照 */
-
-/* プラント1ステップ (RK4, 無次元状態. main_gnc_example.c と同一) */
-static void vf_plant_step(double x[14], const double u[7], const struct0_T *cfg,
-                          double hP)
-{
-    double up[7], k1[14], k2[14], k3[14], k4[14], xt[14];
-    int i;
-    for (i = 0; i < 7; i++) up[i] = u[i];
-    up[0] *= VF_THR_EFF;  up[1] *= VF_THR_EFF;  up[2] *= VF_THR_EFF;
-    dyn(x, up, cfg, k1);
-    for (i = 0; i < 14; i++) xt[i] = x[i] + 0.5*hP*k1[i];
-    dyn(xt, up, cfg, k2);
-    for (i = 0; i < 14; i++) xt[i] = x[i] + 0.5*hP*k2[i];
-    dyn(xt, up, cfg, k3);
-    for (i = 0; i < 14; i++) xt[i] = x[i] + hP*k3[i];
-    dyn(xt, up, cfg, k4);
-    for (i = 0; i < 14; i++) x[i] += hP/6.0*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]);
-    {
-        double nq = sqrt(x[6]*x[6]+x[7]*x[7]+x[8]*x[8]+x[9]*x[9]);
-        if (nq > 1e-12) { for (i = 6; i < 10; i++) x[i] /= nq; }
-    }
-}
+#define VF_THR_EFF  0.97
 
 static FILE *openOut(const char *dir, const char *name)
 {
@@ -164,59 +144,16 @@ int main(int argc, char **argv)
         printf("track: st=%d iters=%d -> verify_track.txt\n", st, iters);
     }
 
-    /* ---- 3. GNC閉ループ (MPC周期ごとに t と状態14をログ) ---- */
+    /* ---- 3. GNC閉ループ (完全構成: 方式は ex_ctlInner に従う) ---- */
     {
-        static double xr[14*61], ur[7*60], engk[60], zw[1300], zo[1300];
-        double x[14], xc[14], sx[14], u0[7], qCmd[4];
-        int xr_size[2], ur_size[2], engk_size[2], zw_size[1], zo_size[1];
-        int st2, it2, sub, k, H = ex_H, nSub;
-        double t = 0.0, tEnd;
         FILE *f = openOut(dir, "verify_gnc.txt");
+        gnc_result_t r;
         if (!f) { printf("verify_gnc.txt を開けません\n"); return 2; }
-        gnc_ref_t ref;
-        ref.t = ex_ref_t;  ref.x = ex_ref_x;  ref.u = ex_ref_u;  ref.eng = ex_ref_eng;
-        ref.n = ex_ref_t_size[1];  ref.nu = ex_ref_u_size[1];
-        tEnd = ex_ref_t[ref.n-1] + 10.0;
-        sx[0]=ex_scL; sx[1]=ex_scL; sx[2]=ex_scL;
-        sx[3]=ex_scV; sx[4]=ex_scV; sx[5]=ex_scV;
-        sx[6]=1; sx[7]=1; sx[8]=1; sx[9]=1;
-        sx[10]=1.0/ex_scT; sx[11]=1.0/ex_scT; sx[12]=1.0/ex_scT; sx[13]=ex_m0;
-        for (i = 0; i < 14; i++) x[i] = ex_ref_x[i];
-        for (i = 0; i < 21*H; i++) zw[i] = 0.0;
-        zw_size[0] = 21*H;
-        for (i = 0; i < 7; i++) u0[i] = 0.0;
-        xr_size[0] = 14;  xr_size[1] = H + 1;
-        ur_size[0] = 7;   ur_size[1] = H;
-        engk_size[0] = 1; engk_size[1] = H;
-        nSub = (int)(ex_dtCtrl/ex_dtPlant + 0.5);   /* 実行周期 (track6Options.dtCtrl) */
-        while (t < tEnd) {
-            double msMpc;
-            clock_t cM;
-            gnc_ref_window(&ref, t, ex_dtMpc, H, xr, ur, engk);
-            for (i = 0; i < 14; i++) xc[i] = x[i] * sx[i];
-            cM = clock();
-            scpk_trackStepEmb(xc, xr, xr_size, ur, ur_size, engk, engk_size,
-                              &cfg, &tp, zw, zw_size, u0, zo, zo_size,
-                              qCmd, &st2, &it2);
-            msMpc = (double)(clock() - cM) * 1000.0 / CLOCKS_PER_SEC;
-            fprintf(f, "%.17g", t);
-            for (i = 0; i < 14; i++) fprintf(f, " %.17g", x[i]);
-            fprintf(f, " %.6g\n", msMpc);
-            for (i = 0; i < zo_size[0]; i++) zw[i] = zo[i];
-            zw_size[0] = zo_size[0];
-            for (sub = 0; sub < nSub; sub++) {
-                vf_plant_step(x, u0, &cfg, ex_dtPlant/ex_scT);
-                t += ex_dtPlant;
-                if (x[0]*ex_scL <= ex_tdAlt) break;
-            }
-            if (x[0]*ex_scL <= ex_tdAlt) break;
-        }
-        fprintf(f, "%.17g", t);
-        for (i = 0; i < 14; i++) fprintf(f, " %.17g", x[i]);
-        fprintf(f, " 0\n");
+        r = gnc_run(&cfg, &tp, VF_THR_EFF, f);
         fclose(f);
-        printf("gnc  : 接地 t=%.1fs 水平%.2fm -> verify_gnc.txt\n",
-               t, ex_scL*sqrt(x[1]*x[1]+x[2]*x[2]));
+        printf("gnc  : 方式%d 接地 t=%.1fs 水平%.2fm -> verify_gnc.txt\n",
+               ex_ctlInner ? 2 : 1, r.t,
+               ex_scL*sqrt(r.x[1]*r.x[1] + r.x[2]*r.x[2]));
     }
 
     gncCore_lib_terminate();

@@ -116,6 +116,8 @@ rp.n=0; rp.ok=0; rp.time=[]; rp.t=[];
 [hTab,tTab] = altTable(refD, sc);                   %% 高度→参照時刻 の逆引き表
 nStep = round(tEnd/dtP);  lastRe = -inf;  navDone = false;  cutDone = false;
 for s = 0:nStep-1
+    %% ログ (周期先頭の状態. 生成コード例 gnc_loop.h と同じ規約)
+    if mod(s,10)==0, log.t(end+1)=t; log.x(:,end+1)=x.*sx; log.u(:,end+1)=u; end
     if strcmpi(refSync,'alt')
         %% 点火ディスパッチ: 参照を高度で引く. 機体が計画より速い/遅い場合も
         %% 「その高度で取るべき状態・推力」を追うので, ホバースラムの燃焼
@@ -241,7 +243,6 @@ for s = 0:nStep-1
     x = x + hP/6*(k1+2*k2+2*k3+k4);
     x(7:10) = x(7:10)/norm(x(7:10));
     t = t + dtP;
-    if mod(s,10)==0, log.t(end+1)=t; log.x(:,end+1)=x.*sx; log.u(:,end+1)=u; end
     if ~isempty(progFcn) && mod(s,200)==0
         progFcn(min(t/(plan.sol.t(end)+5), 0.98));
     end

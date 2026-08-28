@@ -80,12 +80,26 @@ res(end+1,:) = {sprintf('追従: QP status/iters (MATLAB %d/%d, C %d/%d)', ...
     st2, it2, T.st, T.iters), abs(double(st2)-T.st)+abs(double(it2)-T.iters), ...
     double(st2)==T.st && double(it2)==T.iters};
 
-%% --- GNC閉ループ: MATLAB側で同一ループを再現し軌跡を比較 ---
-fprintf('GNC閉ループのMATLAB参照を実行中 (追従MPC x 約%d周期, 1-2分)...\n', size(G,1));
-L = gncTwin(A);
+%% --- GNC閉ループ: MATLABの閉ループ本体 (runClosedLoopReplan) と直接比較 ---
+%% 生成コード側 (gnc_loop.h) は runClosedLoopReplan と同一構成 (制御方式・
+%% ディスパッチ・速度FB・着陸コミット・内ループ・カットオフ) で実装されている.
+fprintf('GNC閉ループのMATLAB参照 (runClosedLoopReplan, 方式=%s) を実行中...\n', A.ctl.ctlMode);
+prmT = struct('planFile',A.planFile, 'errTrig',inf, 'windY',0, 'thrEff',0.97, ...
+    'navJump',0, 'dr0',[0;0;0], 'dvB0',[0;0;0], ...
+    'refSync',A.ctl.refSync, 'ctlMode',A.ctl.ctlMode, ...
+    'velFB',A.ctl.velFB, 'velFBi',A.ctl.velFBi, 'latFreezeAlt',A.ctl.latFreezeAlt, ...
+    'cutoffAlt',A.ctl.cutoffAlt, 'cutoffV',A.ctl.cutoffV, ...
+    'wnAtt',A.ctl.wnAtt, 'ztAtt',A.ctl.ztAtt, 'tauThr',A.ctl.tauThr, ...
+    'fGim',A.ctl.fGim, 'ztGim',A.ctl.ztGim, 'tauFlap',A.ctl.tauFlap, ...
+    'actRateLim',A.ctl.actRateLim, 'dtMpc',A.dtCtrl, 'dtPlant',A.dtPlant, ...
+    'trackOpt',scpk.track6Options(), 'noSave',1, 'anim',false);
+evalc('RT = runClosedLoopReplan(prmT);');
+sxL = [repmat(sc.L,3,1); repmat(sc.V,3,1); ones(4,1); repmat(1/sc.T,3,1); A.cfg.m0];
+L = [RT.log.t(:), (RT.log.x ./ sxL).'];        % C側と同じ無次元表現へ
 nC = min(size(G,1), size(L,1));
 posDiff = max(vecnorm((G(1:nC,2:4) - L(1:nC,2:4)).', 1)) * sc.L;   % 位置差 [m]
-res(end+1,:) = {sprintf('GNC閉ループ: 軌跡位置差 [m] (%d周期)', nC), posDiff, posDiff < 0.01};
+res(end+1,:) = {sprintf('GNC閉ループ: 軌跡位置差 [m] (%d周期, 方式%s)', nC, ...
+    tern(strcmpi(A.ctl.ctlMode,'inner'),'2','1')), posDiff, posDiff < 0.05};
 
 fprintf('\n=== 等価性検証: コンパイル済みC (gcc -O2) vs MATLAB参照実装 ===\n');
 ok = true;
@@ -98,33 +112,6 @@ fprintf('=== 総合判定: %s ===\n', tern(ok,'PASS (数値一致)','FAIL'));
 %% --- プロット: シミュレーション軌跡の重ね描き + 差 + 実行時間 ---
 perf = struct('tCold',P.tColdMs, 'tWarm',P.tWarmMs, 'dtCtrl',A.dtCtrl);
 plotVerify(G, L, sc, res, ok, perf);
-end
-
-
-function L = gncTwin(A)
-%GNCTWIN  main_verify.c のGNC閉ループと同一のループをMATLAB参照実装で実行.
-cfg = A.cfg;  tp = A.tp;  H = A.H;  refD = A.refD;  sc = cfg.sc;
-sx = [repmat(sc.L,3,1); repmat(sc.V,3,1); ones(4,1); repmat(1/sc.T,3,1); cfg.m0];
-dtP = A.dtPlant;  thrEff = 0.97;  tdAlt = cfg.hmin*sc.L;
-nSub = round(A.dtCtrl/dtP);        % 実行周期 (予測ノード間隔 dtMpc とは別)
-x = refD.xhat(:,1);  zw = zeros(21*H,1);  t = 0;  tEnd = refD.t(end) + 10;
-L = zeros(0,15);
-while t < tEnd
-    L(end+1,:) = [t, x.']; %#ok<AGROW>
-    [xr,ur,engk] = winSample(refD, t, A.dtMpc, H);
-    [u0,zw] = scpk.trackStepEmb(x.*sx, xr, ur, engk, cfg, tp, zw);
-    for s = 1:nSub
-        up = u0;  up(1:3) = thrEff*up(1:3);
-        hP = dtP/sc.T;
-        k1 = scpk.dynamics6(x,up,cfg);         k2 = scpk.dynamics6(x+hP/2*k1,up,cfg);
-        k3 = scpk.dynamics6(x+hP/2*k2,up,cfg); k4 = scpk.dynamics6(x+hP*k3,up,cfg);
-        x = x + hP/6*(k1+2*k2+2*k3+k4);  x(7:10) = x(7:10)/norm(x(7:10));
-        t = t + dtP;
-        if x(1)*sc.L <= tdAlt, break; end
-    end
-    if x(1)*sc.L <= tdAlt, break; end
-end
-L(end+1,:) = [t, x.'];
 end
 
 

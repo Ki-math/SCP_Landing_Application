@@ -2674,6 +2674,20 @@ static const double ex_scL = 1000, ex_scV = 100, ex_scT = 10;
 static const double ex_m0 = 130000, ex_Fs = 1300000;
 static const double ex_tdAlt = 31;  /* 接地判定高度 [m] */
 
+/* 制御方式・誘導設定 (機体テンプレート由来) */
+static const int    ex_ctlInner   = 1;   /* 1=方式2(内ループ) 0=方式1(直接) */
+static const int    ex_refSyncAlt = 0;   /* 1=高度同期(点火ディスパッチ) */
+static const double ex_velFB = 0, ex_velFBi = 0;
+static const double ex_latFreezeAlt = 40;  /* 着陸コミット高度 [m] */
+static const double ex_cutoffAlt = 0, ex_cutoffV = -0.5;
+static const double ex_wnAtt = 1.2, ex_ztAtt = 0.90000000000000002;
+static const double ex_tauThr = 0.10000000000000001, ex_fGim = 6, ex_ztGim = 0.70699999999999996, ex_tauFlap = 0.20000000000000001;
+static const int    ex_actRateLim = 0;
+static const double ex_tvcRate = 0.3490658503988659, ex_flapRate = 0.26179938779914941;  /* [rad/s] */
+static const double ex_Lrt = 32.5, ex_Jyy = 42301458.333333336, ex_Jzz = 42301458.333333336;
+static const double ex_tvcMax = 0.26179938779914941;  /* [rad] */
+static const double ex_Tmin1 = 0.70769230769230773, ex_Tmax1 = 1.7692307692307692;  /* 1基あたり推力範囲 (無次元) */
+
 static void fill_cfg(struct0_T *s)
 {
   s->sc.L = 1000;

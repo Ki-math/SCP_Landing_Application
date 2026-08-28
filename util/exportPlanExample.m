@@ -67,6 +67,39 @@ fprintf(fid,'static const double ex_scL = %s, ex_scV = %s, ex_scT = %s;\n', ...
 fprintf(fid,'static const double ex_m0 = %s, ex_Fs = %s;\n', lit(cfg.m0), lit(cfg.Fs));
 fprintf(fid,'static const double ex_tdAlt = %s;  /* 接地判定高度 [m] */\n\n', lit(cfg.hmin*sc.L));
 
+%% --- 制御方式・誘導設定 (機体テンプレート scpProblem から引き継ぎ) ---
+pT = scpProblem(vehicle);
+gT = @(f,d) getFieldOr(pT, f, d);
+ctl.ctlMode      = gT('ctlModeForce','direct');
+ctl.refSync      = gT('refSync','time');
+ctl.velFB        = gT('velFB',0);
+ctl.velFBi       = gT('velFBi',0);
+ctl.latFreezeAlt = gT('latFreezeAlt',0);
+ctl.cutoffAlt    = gT('cutoffAlt',0);
+ctl.cutoffV      = -0.5;
+ctl.wnAtt = 1.2;  ctl.ztAtt = 0.9;
+ctl.tauThr = 0.10;  ctl.fGim = 6;  ctl.ztGim = 0.707;  ctl.tauFlap = 0.20;
+ctl.actRateLim = 0;
+fprintf(fid,'/* 制御方式・誘導設定 (機体テンプレート由来) */\n');
+fprintf(fid,'static const int    ex_ctlInner   = %d;   /* 1=方式2(内ループ) 0=方式1(直接) */\n', ...
+    double(strcmpi(ctl.ctlMode,'inner')));
+fprintf(fid,'static const int    ex_refSyncAlt = %d;   /* 1=高度同期(点火ディスパッチ) */\n', ...
+    double(strcmpi(ctl.refSync,'alt')));
+fprintf(fid,'static const double ex_velFB = %s, ex_velFBi = %s;\n', lit(ctl.velFB), lit(ctl.velFBi));
+fprintf(fid,'static const double ex_latFreezeAlt = %s;  /* 着陸コミット高度 [m] */\n', lit(ctl.latFreezeAlt));
+fprintf(fid,'static const double ex_cutoffAlt = %s, ex_cutoffV = %s;\n', lit(ctl.cutoffAlt), lit(ctl.cutoffV));
+fprintf(fid,'static const double ex_wnAtt = %s, ex_ztAtt = %s;\n', lit(ctl.wnAtt), lit(ctl.ztAtt));
+fprintf(fid,'static const double ex_tauThr = %s, ex_fGim = %s, ex_ztGim = %s, ex_tauFlap = %s;\n', ...
+    lit(ctl.tauThr), lit(ctl.fGim), lit(ctl.ztGim), lit(ctl.tauFlap));
+fprintf(fid,'static const int    ex_actRateLim = %d;\n', ctl.actRateLim);
+fprintf(fid,'static const double ex_tvcRate = %s, ex_flapRate = %s;  /* [rad/s] */\n', ...
+    lit(cfg.veh.tvcRate), lit(cfg.veh.flapRate));
+fprintf(fid,'static const double ex_Lrt = %s, ex_Jyy = %s, ex_Jzz = %s;\n', ...
+    lit(abs(cfg.rT(1))*sc.L), lit(cfg.Jphys(2,2)), lit(cfg.Jphys(3,3)));
+fprintf(fid,'static const double ex_tvcMax = %s;  /* [rad] */\n', lit(cfg.veh.tvcMax));
+fprintf(fid,'static const double ex_Tmin1 = %s, ex_Tmax1 = %s;  /* 1基あたり推力範囲 (無次元) */\n\n', ...
+    lit(cfg.Tmin1), lit(cfg.Tmax1));
+
 emitFill(fid,'fill_cfg','struct0_T',cfg);
 emitFill(fid,'fill_pp', 'struct3_T',pp);
 emitFill(fid,'fill_qp', 'struct4_T',qp);
@@ -80,7 +113,7 @@ args = struct('x0nd',x0./sx, 'xT',xT, 'xl',sol.xhat, 'ul',sol.uhat, ...
     'eng',double(opt.engSched), 'dtv',dtv, 'tiltN',opt.tiltMaxNode, ...
     'cfg',cfg, 'pp',pp, 'qp',qp, 'tp',tp, 'H',topt.H, 'dtMpc',topt.dt, ...
     'dtCtrl',topt.dtCtrl, 'dtPlant',topt.dtPlant, 'refD',refD, ...
-    'vehicle',vehicle);   %#ok<NASGU>
+    'vehicle',vehicle, 'planFile',planFile, 'ctl',ctl);   %#ok<NASGU>
 save(fullfile(proj,'results','plan_example_args.mat'),'-struct','args');
 end
 
@@ -131,6 +164,10 @@ end
 end
 
 function t = ternary(c,a,b), if c, t=a; else, t=b; end, end
+
+function v = getFieldOr(s,f,d)
+if isfield(s,f) && ~isempty(s.(f)), v = s.(f); else, v = d; end
+end
 
 function t = sep(i,n)
 if i==n, t = sprintf('\n');
