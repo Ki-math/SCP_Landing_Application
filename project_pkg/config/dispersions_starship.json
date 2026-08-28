@@ -1,0 +1,10 @@
+[
+  {"name": "thrEff", "dist": "uniform", "p1": 0.95, "p2": 1.00},
+  {"name": "windY",  "dist": "normal",  "p1": 0.0,  "p2": 0.4},
+  {"name": "dr0x",   "dist": "normal",  "p1": 0.0,  "p2": 15},
+  {"name": "dr0y",   "dist": "normal",  "p1": 0.0,  "p2": 10},
+  {"name": "dr0z",   "dist": "normal",  "p1": 0.0,  "p2": 25},
+  {"name": "dvBx",   "dist": "normal",  "p1": 0.0,  "p2": 1.5},
+  {"name": "dvBy",   "dist": "normal",  "p1": 0.0,  "p2": 1.0},
+  {"name": "dvBz",   "dist": "normal",  "p1": 0.0,  "p2": 1.5}
+]

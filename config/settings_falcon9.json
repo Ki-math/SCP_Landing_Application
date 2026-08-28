@@ -1,0 +1,85 @@
+{
+  "vehicle": "falcon9",
+  "ic": {
+    "alt": 2200,
+    "downrange": -40,
+    "cross": 0,
+    "vDescent": 240,
+    "vHoriz": 10
+  },
+  "veh": {
+    "dryMass_t": 25.6,
+    "prop_t": 8,
+    "Lb_m": 41,
+    "R_m": 1.85,
+    "nEngine": 3,
+    "thrustPerEng_kN": 845,
+    "Isp_s": 282,
+    "throttleMin": 0.57,
+    "tvcMax_deg": 8
+  },
+  "der": {
+    "Ixx_tm2": 57.498,
+    "Iyy_tm2": 4735.5,
+    "Izz_tm2": 4735.5,
+    "rTx_m": -20.5,
+    "rho": 1.225,
+    "CdAx": 0.8,
+    "CdSide": 1.2,
+    "aeroScale": 1.0,
+    "LoverD": 0.0,
+    "VrefSurf_ms": 240,
+    "surfGain": 1.0,
+    "kFlapDrag": 0.5,
+    "hmin_m": 18,
+    "wMax_degs": 30
+  },
+  "plan": {
+    "log10LamTerm": 8,
+    "wFuel": 15,
+    "tolPos_m": 5,
+    "tolVel_ms": 0.5
+  },
+  "track": {
+    "ctlMode": "direct",
+    "wPos": 8,
+    "wVel": 2,
+    "wQuat": 2.5,
+    "wRate": 2.0,
+    "H": 25
+  },
+  "dist": {
+    "thrEff": 0.97,
+    "windY": 0.2,
+    "navJump": 0,
+    "errTrig": 25,
+    "dr0": [
+      15,
+      10,
+      -20
+    ],
+    "dvB0": [
+      1,
+      -1,
+      1.5
+    ]
+  },
+  "env": {
+    "atmIsa": 1,
+    "hPad_m": 0,
+    "wind": {
+      "h": [],
+      "wy": [],
+      "wz": []
+    }
+  },
+  "mcs": {
+    "N": 8,
+    "parallel": true,
+    "dispFile": "dispersions_falcon9.json"
+  },
+  "play": {
+    "speed": 1.5,
+    "source": "閉ループ"
+  }
+}

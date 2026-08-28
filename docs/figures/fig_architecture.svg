@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 490" font-family="'Segoe UI','Yu Gothic UI',sans-serif" font-size="14">
+  <defs>
+    <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+  </defs>
+  <rect width="900" height="490" fill="white"/>
+  <text x="20" y="28" font-size="18" font-weight="bold">全体アーキテクチャ (ワークフローと制御階層)</text>
+
+  <!-- ===== ワークフロー行 ===== -->
+  <g>
+    <rect x="30"  y="52" width="150" height="64" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+    <text x="45" y="74" font-weight="bold">scpProblem</text>
+    <text x="45" y="93" font-size="11.5">問題定義</text>
+    <text x="45" y="109" font-size="11">(機体/初期条件/重み)</text>
+    <rect x="220" y="52" width="150" height="64" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+    <text x="235" y="74" font-weight="bold">scpPlan</text>
+    <text x="235" y="93" font-size="11.5">軌道計画</text>
+    <text x="235" y="109" font-size="11">(SCvx, 約1分)</text>
+    <rect x="410" y="52" width="160" height="64" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+    <text x="425" y="74" font-weight="bold">scpClosedLoop</text>
+    <text x="425" y="93" font-size="11.5">閉ループ解析</text>
+    <text x="425" y="109" font-size="11">(追従MPC+外乱)</text>
+    <rect x="610" y="52" width="120" height="64" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+    <text x="625" y="74" font-weight="bold">scpMCS</text>
+    <text x="625" y="93" font-size="11.5">モンテカルロ</text>
+    <text x="625" y="109" font-size="11">(統計・鳥瞰図)</text>
+    <rect x="760" y="52" width="120" height="64" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+    <text x="770" y="74" font-weight="bold">scpCodegenZip</text>
+    <text x="770" y="93" font-size="11.5">コード生成</text>
+    <text x="770" y="109" font-size="11">(純C/C++出力)</text>
+    <line x1="180" y1="84" x2="218" y2="84" stroke="#555" stroke-width="2" marker-end="url(#ar3)"/>
+    <line x1="370" y1="84" x2="408" y2="84" stroke="#555" stroke-width="2" marker-end="url(#ar3)"/>
+    <line x1="570" y1="84" x2="608" y2="84" stroke="#555" stroke-width="2" marker-end="url(#ar3)"/>
+    <line x1="730" y1="84" x2="758" y2="84" stroke="#555" stroke-width="2" marker-end="url(#ar3)"/>
+    <text x="30" y="136" font-size="12" fill="#777">GUI (scpApp) は同じ関数をボタンから呼ぶ. 設定は config/settings_*.json で入出力.</text>
+  </g>
+
+  <!-- ===== scpPlan の中身 ===== -->
+  <g>
+    <rect x="30" y="150" width="340" height="132" rx="8" fill="#f5f5f5" stroke="#999"/>
+    <text x="45" y="172" font-weight="bold" fill="#333">scpPlan の中身 (SCvx 反復)</text>
+    <rect x="45"  y="185" width="90" height="34" rx="5" fill="#fff" stroke="#666"/><text x="52" y="206" font-size="12">線形化+離散化</text>
+    <rect x="150" y="185" width="90" height="34" rx="5" fill="#fff" stroke="#666"/><text x="160" y="199" font-size="12">QP求解</text><text x="160" y="212" font-size="11">(PIPG, C++)</text>
+    <rect x="255" y="185" width="100" height="34" rx="5" fill="#fff" stroke="#666"/><text x="262" y="199" font-size="12">信頼領域縮小</text><text x="262" y="212" font-size="11">0.93/反復</text>
+    <line x1="135" y1="202" x2="148" y2="202" stroke="#555" stroke-width="1.5" marker-end="url(#ar3)"/>
+    <line x1="240" y1="202" x2="253" y2="202" stroke="#555" stroke-width="1.5" marker-end="url(#ar3)"/>
+    <path d="M 305 219 V 240 H 90 V 221" fill="none" stroke="#555" stroke-width="1.5" marker-end="url(#ar3)"/>
+    <text x="150" y="258" font-size="12" fill="#555">収束まで反復</text>
+    <text x="78" y="274" font-size="11" fill="#555">(自由終端時間σ, 仮想制御ν, ソフト制約つき)</text>
+  </g>
+
+  <!-- ===== 組み込みパッケージ ===== -->
+  <g>
+    <rect x="30" y="290" width="340" height="160" rx="8" fill="#fff3e0" stroke="#e65100"/>
+    <text x="45" y="312" font-weight="bold" fill="#e65100">組み込みパッケージ (scpCodegenZip)</text>
+    <text x="45" y="334" font-size="12">planner/  計画SCP 1反復のフルC (BLASフリー)</text>
+    <text x="45" y="352" font-size="12">solver/   PIPG ヘッダオンリーC++ (MEXとビット一致)</text>
+    <text x="45" y="370" font-size="12">examples/ 実データ入り main (gcc一発ビルド)</text>
+    <text x="45" y="388" font-size="12">実測: 1反復 warm ~10ms → 100ms周期再計画が成立</text>
+    <text x="45" y="406" font-size="12">MATLAB/MEX/BLAS 依存ゼロ (自動検証つき)</text>
+    <text x="45" y="430" font-size="12" fill="#555">使い方は zip 内 README (docs/embedded_README.md)</text>
+  </g>
+
+  <!-- ===== scpClosedLoop の中身 ===== -->
+  <g>
+    <rect x="400" y="150" width="480" height="300" rx="8" fill="#f5f5f5" stroke="#999"/>
+    <text x="415" y="172" font-weight="bold" fill="#333">scpClosedLoop の中身 (制御階層)</text>
+
+    <rect x="470" y="185" width="185" height="48" rx="5" fill="#e3f2fd" stroke="#1565c0"/>
+    <text x="480" y="204" font-size="13" font-weight="bold">追従MPC (100 ms)</text>
+    <text x="480" y="222" font-size="11.5">LTV-QP, H=25×0.2s, 固定300反復</text>
+
+    <rect x="680" y="185" width="190" height="48" rx="5" fill="#e3f2fd" stroke="#1565c0"/>
+    <text x="690" y="204" font-size="13" font-weight="bold">オンライン再計画 (~1 s)</text>
+    <text x="690" y="222" font-size="11.5">誤差&gt;errTrig で残り軌道を引き直し</text>
+    <!-- 参照更新: 再計画の下から回してMPC下辺へ (交差なし) -->
+    <path d="M 775 233 V 246 H 640 V 237" fill="none" stroke="#555" stroke-width="1.5" marker-end="url(#ar3)"/>
+    <text x="690" y="260" font-size="11.5" fill="#555">参照更新</text>
+
+    <rect x="470" y="252" width="185" height="62" rx="5" fill="#fffde7" stroke="#f9a825"/>
+    <text x="480" y="271" font-size="13" font-weight="bold">方式2: 姿勢内ループ (10 ms)</text>
+    <text x="480" y="289" font-size="11.5">姿勢PD + 横推力FF → ジンバル角</text>
+    <text x="480" y="305" font-size="11.5">+ 速度FB (ホバースラム鉛直補償)</text>
+
+    <rect x="470" y="330" width="185" height="48" rx="5" fill="#ffebee" stroke="#c62828"/>
+    <text x="480" y="349" font-size="13" font-weight="bold">アクチュエータ動特性</text>
+    <text x="480" y="367" font-size="11.5">TVC 2次系6Hz / スロットル・舵面遅れ</text>
+
+    <rect x="680" y="308" width="190" height="62" rx="5" fill="#eceff1" stroke="#455a64"/>
+    <text x="690" y="327" font-size="13" font-weight="bold">プラント (10 ms, RK4)</text>
+    <text x="690" y="345" font-size="11.5">6自由度14状態 + 外乱</text>
+    <text x="690" y="361" font-size="11.5">(推力効率, 横風, 航法ジャンプ)</text>
+
+    <!-- 縦の信号列 (MPC→方式2→アクチュエータ→プラント) -->
+    <line x1="562" y1="233" x2="562" y2="250" stroke="#555" stroke-width="1.5" marker-end="url(#ar3)"/>
+    <line x1="562" y1="314" x2="562" y2="328" stroke="#555" stroke-width="1.5" marker-end="url(#ar3)"/>
+    <path d="M 655 354 H 668 V 344 H 678" fill="none" stroke="#555" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+    <!-- 状態フィードバック: プラント下から左の専用レーン (x=440) を通ってMPCへ -->
+    <path d="M 775 370 V 402 H 440 V 209 H 468" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#ar3)"/>
+    <text x="560" y="396" font-size="11.5" fill="#555">状態フィードバック x</text>
+
+    <text x="415" y="432" font-size="12" fill="#555">方式1 (ctlMode='direct') は MPC出力を直接プラントへ (falcon9 既定)</text>
+  </g>
+</svg>

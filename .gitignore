@@ -1,0 +1,23 @@
+# --- ビルド生成物・一時ファイル ---
+*.mexw64
+*.asv
+*.autosave
+embedded_pkg/
+
+# MATLAB Coder のビルド作業ディレクトリ (再生成可能. 純Cソースの
+# codegen_planiter_lib はビルド不要で使えるようリポジトリに含める)
+src/cpp/codegen_build_mex/
+src/cpp/codegen_build_lib/
+src/cpp/codegen_planiter_mex/
+src/cpp/codegen_trackstep_mex/
+
+# 解析結果 (公称計画の2ファイルだけ再現用に含める)
+results/*
+!results/landing_vert.mat
+!results/landing_falcon9.mat
+
+# パッケージzip (組み込みzipはリリース物として含める)
+scp_landing_project.zip
+
+# GUI生成の再現スクリプト (ユーザーローカル)
+repro_*.m

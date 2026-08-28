@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 530" font-family="'Segoe UI','Yu Gothic UI',sans-serif" font-size="15">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c62828"/>
+    </marker>
+    <marker id="arB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1565c0"/>
+    </marker>
+  </defs>
+  <rect width="900" height="530" fill="white"/>
+  <text x="20" y="30" font-size="18" font-weight="bold">座標系と状態量</text>
+
+  <!-- ===== 慣性座標系 (左) ===== -->
+  <g>
+    <text x="60" y="70" font-weight="bold" fill="#333">慣性座標系 (地上固定, 原点=着陸パッド)</text>
+    <line x1="40" y1="410" x2="360" y2="410" stroke="#8d6e63" stroke-width="3"/>
+    <rect x="150" y="406" width="60" height="8" fill="#546e7a"/>
+    <text x="146" y="434" fill="#546e7a">パッド (原点)</text>
+    <line x1="180" y1="406" x2="180" y2="120" stroke="#333" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="188" y="132">r(1) 高度 [m]</text>
+    <line x1="180" y1="406" x2="345" y2="406" stroke="#333" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="228" y="392">r(3) ダウンレンジ [m]</text>
+    <line x1="180" y1="406" x2="95" y2="340" stroke="#333" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="30" y="330">r(2) クロスレンジ [m]</text>
+  </g>
+
+  <!-- ===== 機体座標系 (右) ===== -->
+  <g>
+    <text x="520" y="70" font-weight="bold" fill="#333">機体座標系 (機体固定)</text>
+
+    <!-- 機体形状のみ回転グループで描画 (文字は含めない) -->
+    <g transform="rotate(20 620 240)">
+      <!-- 胴体 -->
+      <rect x="604" y="120" width="32" height="210" rx="3" fill="#eceff1" stroke="#455a64" stroke-width="2"/>
+      <!-- ノーズコーン (オジャイブ) -->
+      <path d="M 604 120 C 604 92, 612 74, 620 66 C 628 74, 636 92, 636 120 Z"
+            fill="#cfd8dc" stroke="#455a64" stroke-width="2"/>
+      <!-- パネルライン -->
+      <line x1="604" y1="152" x2="636" y2="152" stroke="#b0bec5" stroke-width="1"/>
+      <line x1="604" y1="292" x2="636" y2="292" stroke="#b0bec5" stroke-width="1"/>
+      <!-- グリッドフィン (上部, 左右) -->
+      <rect x="595" y="130" width="9" height="17" rx="1.5" fill="#cfd8dc" stroke="#455a64" stroke-width="1.5"/>
+      <rect x="636" y="130" width="9" height="17" rx="1.5" fill="#cfd8dc" stroke="#455a64" stroke-width="1.5"/>
+      <!-- 収納脚 (胴体沿い) -->
+      <line x1="603" y1="288" x2="596" y2="342" stroke="#455a64" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="637" y1="288" x2="644" y2="342" stroke="#455a64" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- エンジンスカート -->
+      <path d="M 604 330 L 600 344 H 640 L 636 330 Z" fill="#cfd8dc" stroke="#455a64" stroke-width="2"/>
+      <!-- ノズル -->
+      <path d="M 613 344 L 607 360 H 633 L 627 344 Z" fill="#90a4ae" stroke="#455a64" stroke-width="1.5"/>
+    </g>
+
+    <!-- CG -->
+    <circle cx="623" cy="231" r="6" fill="#333"/>
+    <text x="633" y="227">CG</text>
+
+    <!-- x_B 軸 (機体長軸方向, 回転済み座標で直接描画) -->
+    <line x1="623" y1="231" x2="688" y2="52" stroke="#1565c0" stroke-width="2.5" marker-end="url(#arB)"/>
+    <text x="698" y="60" fill="#1565c0">x_B (機体長軸)</text>
+    <!-- z_B 軸 -->
+    <line x1="623" y1="231" x2="727" y2="268" stroke="#1565c0" stroke-width="2.5" marker-end="url(#arB)"/>
+    <text x="735" y="280" fill="#1565c0">z_B</text>
+
+    <!-- 鉛直基準と傾斜角 (ラベルは左側の空きに配置) -->
+    <line x1="623" y1="231" x2="623" y2="85" stroke="#666" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <text x="530" y="98" fill="#666">鉛直 (慣性)</text>
+    <path d="M 623 161 A 70 70 0 0 1 647 166" fill="none" stroke="#e65100" stroke-width="2"/>
+    <line x1="617" y1="150" x2="560" y2="140" stroke="#e65100" stroke-width="1"/>
+    <text x="452" y="136" fill="#e65100" font-weight="bold">傾斜角 θ</text>
+    <text x="452" y="154" fill="#e65100" font-size="13">x_B と鉛直のなす角</text>
+
+    <!-- 推力作用点 (ラベルは右側へ引き出し) -->
+    <circle cx="580" cy="351" r="5" fill="#c62828"/>
+    <line x1="585" y1="353" x2="668" y2="366" stroke="#c62828" stroke-width="1"/>
+    <text x="674" y="362" fill="#c62828">推力作用点</text>
+    <text x="674" y="380" fill="#c62828">rT = [rTx; 0; 0]</text>
+
+    <!-- 推力ベクトルとジンバル角 -->
+    <line x1="580" y1="351" x2="496" y2="433" stroke="#c62828" stroke-width="3" marker-end="url(#arR)"/>
+    <line x1="580" y1="351" x2="551" y2="434" stroke="#c62828" stroke-width="1" stroke-dasharray="5,4"/>
+    <path d="M 561 405 A 57 57 0 0 1 539 392" fill="none" stroke="#c62828" stroke-width="1.5"/>
+    <line x1="549" y1="397" x2="596" y2="414" stroke="#c62828" stroke-width="1"/>
+    <text x="602" y="414" fill="#c62828">ジンバル角 δ</text>
+    <text x="602" y="432" fill="#c62828" font-size="13">δ ≤ ジンバル最大 (tvcMax)</text>
+    <text x="420" y="452" fill="#c62828">推力 T_B (機体系)</text>
+  </g>
+
+  <!-- ===== 状態・制御ベクトル (2行で幅内に収める) ===== -->
+  <g font-size="14" fill="#333">
+    <line x1="20" y1="462" x2="880" y2="462" stroke="#ddd" stroke-width="1"/>
+    <text x="30" y="486">状態 x = [ r_I(3) 高度/クロス/DR ;  v_B(3) 機体系速度 ;  q(4) 四元数 (スカラー先頭, 慣性→機体) ;</text>
+    <text x="105" y="508">ω_B(3) 機体系角速度 ;  m̂ 正規化質量 ]      制御 u = [ T_B(3) 推力 ; 舵面(4) ]</text>
+  </g>
+</svg>

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 545" font-family="'Segoe UI','Yu Gothic UI',sans-serif" font-size="14">
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arR2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c62828"/>
+    </marker>
+  </defs>
+  <rect width="900" height="545" fill="white"/>
+  <text x="20" y="28" font-size="18" font-weight="bold">主要な制約のイメージ</text>
+
+  <!-- ===== (a) グライドスロープ ===== -->
+  <g transform="translate(0,40)">
+    <text x="40" y="20" font-weight="bold">(a) グライドスロープ (soft)</text>
+    <line x1="30" y1="360" x2="280" y2="360" stroke="#8d6e63" stroke-width="3"/>
+    <rect x="130" y="356" width="46" height="8" fill="#546e7a"/>
+    <!-- 円錐 (頂点=パッド) -->
+    <path d="M153 360 L45 80 L261 80 Z" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <line x1="153" y1="360" x2="153" y2="70" stroke="#666" stroke-width="1" stroke-dasharray="5,4"/>
+    <!-- 半頂角の円弧: 鉛直線から円錐の右母線まで (頂点中心, 半径150) -->
+    <path d="M 153 210 A 150 150 0 0 1 209 220" fill="none" stroke="#1565c0" stroke-width="2"/>
+    <text x="216" y="212" fill="#1565c0">グライドスロープ角</text>
+    <text x="216" y="230" fill="#1565c0" font-size="12">(glideSlope)</text>
+    <!-- 軌道 -->
+    <path d="M 250 95 C 210 170, 165 260, 154 356" fill="none" stroke="#2e7d32" stroke-width="2.5"/>
+    <text x="168" y="130" fill="#2e7d32">軌道は円錐内</text>
+    <text x="40" y="392" font-size="13" fill="#555">位置がパッド上の円錐内に入る.</text>
+    <text x="40" y="409" font-size="13" fill="#555">スラック付き (softGlide) で違反を</text>
+    <text x="40" y="426" font-size="13" fill="#555">lamGlide でL1ペナルティ.</text>
+  </g>
+
+  <!-- ===== (b) 傾斜角スケジュール ===== -->
+  <g transform="translate(300,40)">
+    <text x="40" y="20" font-weight="bold">(b) 傾斜角上限 tiltN (hard)</text>
+    <line x1="50" y1="330" x2="50" y2="60" stroke="#333" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <line x1="50" y1="330" x2="270" y2="330" stroke="#333" stroke-width="1.5" marker-end="url(#ar2)"/>
+    <text x="18" y="55">θ上限</text>
+    <text x="215" y="352">ノード k</text>
+    <path d="M50 120 H140 V180 H200 V250 H265" fill="none" stroke="#c62828" stroke-width="2.5"/>
+    <text x="60" y="110" fill="#c62828">12°</text>
+    <text x="150" y="172" fill="#c62828">8°</text>
+    <text x="205" y="242" fill="#c62828">4°</text>
+    <path d="M50 66 H120 L190 300 H265" fill="none" stroke="#1565c0" stroke-width="2.5" stroke-dasharray="7,4"/>
+    <text x="58" y="82" fill="#1565c0">179° (ベリー)</text>
+    <!-- 凡例 (曲線と重ならない右上の空き領域, 2段そろえ) -->
+    <line x1="180" y1="101" x2="208" y2="101" stroke="#1565c0" stroke-width="2.5" stroke-dasharray="7,4"/>
+    <text x="214" y="106" fill="#1565c0">starship</text>
+    <line x1="180" y1="123" x2="208" y2="123" stroke="#c62828" stroke-width="2.5"/>
+    <text x="214" y="128" fill="#c62828">falcon9</text>
+    <text x="196" y="292" fill="#1565c0">10°</text>
+    <text x="118" y="200" fill="#1565c0" transform="rotate(60 118 200)">フリップ</text>
+    <text x="40" y="392" font-size="13" fill="#555">ノードごとのハード上限で姿勢プロファイル</text>
+    <text x="40" y="409" font-size="13" fill="#555">の骨格を与える (prob.tiltN で編集).</text>
+    <text x="40" y="426" font-size="13" fill="#555">ソフト化は大回転解を許すため不可.</text>
+  </g>
+
+  <!-- ===== (c) 推力制約 ===== -->
+  <g transform="translate(600,40)">
+    <text x="40" y="20" font-weight="bold">(c) 推力制約 (hard)</text>
+    <g transform="translate(150,210)">
+      <line x1="0" y1="-130" x2="0" y2="0" stroke="#455a64" stroke-width="3"/>
+      <text x="8" y="-116" fill="#455a64">-x_B</text>
+      <path d="M0 0 L-58 128 L58 128 Z" fill="#ffebee" stroke="#c62828" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <line x1="0" y1="0" x2="0" y2="128" stroke="#666" stroke-width="1" stroke-dasharray="5,4"/>
+      <path d="M 0 62 A 60 60 0 0 0 -26 57" fill="none" stroke="#c62828" stroke-width="1.6"/>
+      <text x="-118" y="52" fill="#c62828">ジンバル角コーン</text>
+      <text x="-118" y="70" fill="#c62828" font-size="12">(25面の多面体)</text>
+      <path d="M0 0 L-35 78 L35 78 Z" fill="#ffcdd2" stroke="none"/>
+      <line x1="-35" y1="78" x2="35" y2="78" stroke="#c62828" stroke-width="2"/>
+      <line x1="-52" y1="115" x2="52" y2="115" stroke="#c62828" stroke-width="2"/>
+      <text x="42" y="80" fill="#c62828">Tmin</text>
+      <text x="58" y="118" fill="#c62828">Tmax</text>
+      <line x1="0" y1="0" x2="-30" y2="100" stroke="#c62828" stroke-width="3" marker-end="url(#arR2)"/>
+      <text x="-46" y="112" fill="#c62828" font-weight="bold">T_B</text>
+    </g>
+    <text x="40" y="392" font-size="13" fill="#555">最低スロットル(再点火不可域)と最大推力,</text>
+    <text x="40" y="409" font-size="13" fill="#555">ジンバル角のコーン制約.</text>
+    <text x="40" y="426" font-size="13" fill="#555">‖T‖=Γ の線形化つき. 基数は prob.eng.</text>
+  </g>
+
+  <!-- ===== 補足 (独立した段, 各パネルの説明と重ならない) ===== -->
+  <line x1="20" y1="486" x2="880" y2="486" stroke="#ddd" stroke-width="1"/>
+  <g font-size="12.5" fill="#777">
+    <text x="20" y="508">このほかの制約: 単調降下 monoDescent (h(k+1) ≤ h(k)),  行き過ぎ防止 drBox / crMax,  角速度上限 wMaxFlip / wMaxTight,</text>
+    <text x="20" y="528">高度下限 hmin−hMargin.  一覧と既定値は USER_GUIDE §4 を参照.</text>
+  </g>
+</svg>
