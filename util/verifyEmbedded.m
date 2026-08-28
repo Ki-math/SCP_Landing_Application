@@ -96,7 +96,7 @@ end
 fprintf('=== 総合判定: %s ===\n', tern(ok,'PASS (数値一致)','FAIL'));
 
 %% --- プロット: シミュレーション軌跡の重ね描き + 差 + 実行時間 ---
-perf = struct('tCold',P.tColdMs, 'tWarm',P.tWarmMs, 'dtMpc',A.dtMpc);
+perf = struct('tCold',P.tColdMs, 'tWarm',P.tWarmMs, 'dtCtrl',A.dtCtrl);
 plotVerify(G, L, sc, res, ok, perf);
 end
 
@@ -106,7 +106,7 @@ function L = gncTwin(A)
 cfg = A.cfg;  tp = A.tp;  H = A.H;  refD = A.refD;  sc = cfg.sc;
 sx = [repmat(sc.L,3,1); repmat(sc.V,3,1); ones(4,1); repmat(1/sc.T,3,1); cfg.m0];
 dtP = 0.01;  thrEff = 0.97;  tdAlt = cfg.hmin*sc.L;
-nSub = round(A.dtMpc/dtP);
+nSub = round(A.dtCtrl/dtP);        % 実行周期 (予測ノード間隔 dtMpc とは別)
 x = refD.xhat(:,1);  zw = zeros(21*H,1);  t = 0;  tEnd = refD.t(end) + 10;
 L = zeros(0,15);
 while t < tEnd
@@ -175,7 +175,7 @@ title(ax,sprintf('閉ループ軌跡の差 (max %.1e m)', max(dpos)));
 %% 実行時間 (リアルタイム性): 追従MPC 1周期の計測 (C, gcc -O2)
 ax = nexttile(tl);  hold(ax,'on'); grid(ax,'on');
 msC = G(1:end-1,16);   tC = G(1:end-1,1);
-budget = perf.dtMpc*1000;
+budget = perf.dtCtrl*1000;
 plot(ax, tC, msC, 'b-','LineWidth',1.2);
 yline(ax, budget, 'r--','LineWidth',1.4, ...
       'Label',sprintf('制御周期 %.0f ms', budget), 'LabelHorizontalAlignment','left');
@@ -184,7 +184,7 @@ xlabel(ax,'t [s]'); ylabel(ax,'実行時間 [ms]');
 title(ax, sprintf('追従MPC実行時間 (平均%.1f / 最大%.1f ms, 余裕%.0f%%)', ...
       mean(msC), max(msC), 100*(1 - max(msC)/budget)));
 
-ax = nexttile(tl, [1 1]);  axis(ax,'off');
+ax = nexttile(tl, [1 2]);  axis(ax,'off');   % テキストは2枠分 (見切れ防止)
 txt = cell(size(res,1)+7,1);
 txt{1} = sprintf('総合判定: %s', tern(ok,'PASS (数値一致)','FAIL'));
 txt{2} = '';

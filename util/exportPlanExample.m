@@ -50,7 +50,8 @@ emitArr(fid,'ex_ref_x',   refD.xhat);              % 参照状態 (無次元 14 
 emitArr(fid,'ex_ref_u',   refD.uhat);              % 参照制御 (無次元 7 x nU)
 emitArr(fid,'ex_ref_eng', double(refD.engSched(:)).');
 fprintf(fid,'static const int    ex_H     = %d;    /* 追従ホライズン節点 */\n', topt.H);
-fprintf(fid,'static const double ex_dtMpc = %s;  /* 追従MPC周期 [s] */\n', lit(topt.dt));
+fprintf(fid,'static const double ex_dtMpc = %s;  /* 予測ノード間隔 [s] (参照窓の刻み) */\n', lit(topt.dt));
+fprintf(fid,'static const double ex_dtCtrl = 0.1;  /* 追従MPCの実行周期 [s] */\n');
 fprintf(fid,'static const double ex_scL = %s, ex_scV = %s, ex_scT = %s;\n', ...
     lit(sc.L), lit(sc.V), lit(sc.T));
 fprintf(fid,'static const double ex_m0 = %s, ex_Fs = %s;\n', lit(cfg.m0), lit(cfg.Fs));
@@ -68,7 +69,7 @@ args = struct('x0nd',x0./sx, 'xT',xT, 'xl',sol.xhat, 'ul',sol.uhat, ...
     'gl',sol.ghat, 'sigl',sol.sigma/sc.T, 'phase',double(opt.phase), ...
     'eng',double(opt.engSched), 'dtv',dtv, 'tiltN',opt.tiltMaxNode, ...
     'cfg',cfg, 'pp',pp, 'qp',qp, 'tp',tp, 'H',topt.H, 'dtMpc',topt.dt, ...
-    'refD',refD);   %#ok<NASGU>
+    'dtCtrl',0.1, 'refD',refD);   %#ok<NASGU>
 save(fullfile(proj,'results','plan_example_args.mat'),'-struct','args');
 end
 

@@ -189,7 +189,7 @@ int main(int argc, char **argv)
         xr_size[0] = 14;  xr_size[1] = H + 1;
         ur_size[0] = 7;   ur_size[1] = H;
         engk_size[0] = 1; engk_size[1] = H;
-        nSub = (int)(ex_dtMpc/VF_DT_PLANT + 0.5);
+        nSub = (int)(ex_dtCtrl/VF_DT_PLANT + 0.5);   /* 実行周期100msで回す */
         while (t < tEnd) {
             double msMpc;
             clock_t cM;

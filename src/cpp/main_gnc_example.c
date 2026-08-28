@@ -91,7 +91,7 @@ int main(void)
     engk_size[0] = 1; engk_size[1] = H;
 
     printf("GNC統合ループ開始 (追従MPC %.0f ms 周期, プラント %.0f ms, 推力効率 %.2f)\n",
-           ex_dtMpc*1000.0, DT_PLANT*1000.0, THR_EFF);
+           ex_dtCtrl*1000.0, DT_PLANT*1000.0, THR_EFF);
     while (t < tEnd) {
         /* --- 追従MPC (時刻同期. ホバースラムなら gnc_dispatch_time で高度同期) --- */
         gnc_ref_window(&ref, t, ex_dtMpc, H, xr, ur, engk);
@@ -104,8 +104,8 @@ int main(void)
         for (i = 0; i < zo_size[0]; i++) zw[i] = zo[i];
         zw_size[0] = zo_size[0];
 
-        /* --- プラント (10 ms x 周期分) --- */
-        for (sub = 0; sub < (int)(ex_dtMpc/DT_PLANT + 0.5); sub++) {
+        /* --- プラント (10 ms x 実行周期分) --- */
+        for (sub = 0; sub < (int)(ex_dtCtrl/DT_PLANT + 0.5); sub++) {
             plant_step(x, u0, &cfg, DT_PLANT/ex_scT);
             t += DT_PLANT;
             if (x[0]*ex_scL <= ex_tdAlt) break;
