@@ -182,6 +182,9 @@ uilabel(gC2,'Text','スロットル遅れ [s]');  W.tauT = uieditfield(gC2,'nume
 uilabel(gC2,'Text','TVC周波数 [Hz]');      W.fG   = uieditfield(gC2,'numeric','Value',6,'Tooltip','fGim (2次系)');
 uilabel(gC2,'Text','TVC減衰比');           W.ztG  = uieditfield(gC2,'numeric','Value',0.707,'Tooltip','ztGim');
 uilabel(gC2,'Text','舵面遅れ [s]');        W.tauF = uieditfield(gC2,'numeric','Value',0.20,'Tooltip','tauFlap (1次遅れ)');
+uilabel(gC2,'Text','スロットルリード補償'); W.tLd = uieditfield(gC2,'numeric','Value',0, ...
+    'Tooltip',['thrLead. スロットル1次遅れのリード補償 (0=なし, 0.5-1=補償). ' ...
+    'ホバースラム機の方式2で制動精度が改善 (MCS成功率 35->50% 実測)']);
 W.aRL = uicheckbox(gC2,'Text','スルーレート飽和','Value',false, ...
     'Tooltip',['actRateLim. 機体諸元 tvcRate/flapRate でハード制限. ' ...
     '既定の実機値 (20/15deg/s) のまま有効化すると内ループが発散する点に注意 (ガイド§6)']);
@@ -348,6 +351,7 @@ function setDefaults()
     W.cutV.Value = -0.5;
     W.wnA.Value = 1.2;  W.ztA.Value = 0.9;  W.tauT.Value = 0.10;
     W.fG.Value = 6;  W.ztG.Value = 0.707;  W.tauF.Value = 0.20;  W.aRL.Value = false;
+    W.tLd.Value = 0;
     W.dtC.Value = pT.track.dtCtrl;  W.dtP.Value = pT.track.dtPlant;
     okc = gT('okCrit', struct('horiz',30,'vz',5,'tilt',10));   % 成功判定
     W.okH.Value = okc.horiz;  W.okV.Value = okc.vz;  W.okT.Value = okc.tilt;
@@ -558,6 +562,7 @@ function prm = ctlPrm(prm)
     prm.wnAtt = W.wnA.Value;          prm.ztAtt = W.ztA.Value;
     prm.tauThr = W.tauT.Value;        prm.fGim = W.fG.Value;
     prm.ztGim = W.ztG.Value;          prm.tauFlap = W.tauF.Value;
+    prm.thrLead = W.tLd.Value;
     prm.actRateLim = double(W.aRL.Value);
     prm.dtMpc = W.dtC.Value;          prm.dtPlant = W.dtP.Value;
 end
@@ -886,7 +891,7 @@ function s = gatherSettings()
                     'latFreezeAlt',W.latF.Value,'cutoffAlt',W.cutA.Value,'cutoffV',W.cutV.Value, ...
                     'wnAtt',W.wnA.Value,'ztAtt',W.ztA.Value,'tauThr',W.tauT.Value, ...
                     'fGim',W.fG.Value,'ztGim',W.ztG.Value,'tauFlap',W.tauF.Value, ...
-                    'actRateLim',logical(W.aRL.Value), ...
+                    'thrLead',W.tLd.Value,'actRateLim',logical(W.aRL.Value), ...
                     'dtMpc',W.dtC.Value,'dtPlant',W.dtP.Value);
     D = W.wndT.Data;
     s.env  = struct('atmIsa',double(strcmp(W.atm.Value,'ISA標準大気')), ...
@@ -968,6 +973,7 @@ function applySettings(s)
     W.fG.Value   = gs('ctl','fGim',W.fG.Value);
     W.ztG.Value  = gs('ctl','ztGim',W.ztG.Value);
     W.tauF.Value = gs('ctl','tauFlap',W.tauF.Value);
+    W.tLd.Value  = gs('ctl','thrLead',W.tLd.Value);
     W.aRL.Value  = logical(gs('ctl','actRateLim',W.aRL.Value));
     W.dtC.Value  = gs('ctl','dtMpc',W.dtC.Value);
     W.dtP.Value  = gs('ctl','dtPlant',W.dtP.Value);

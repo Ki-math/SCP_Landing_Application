@@ -164,8 +164,19 @@ static gnc_result_t gnc_run(const struct0_T *cfg, const struct5_T *tp,
             if (engNow == 0.0) { u[0] = 0.0; u[1] = 0.0; u[2] = 0.0; }
         } else {
             /* --- 方式2: 姿勢内ループ + アクチュエータ (10ms) --- */
+            double qC[4], uM[7], nqC;
             TcN = sqrt(T1a*T1a + uMPC[1]*uMPC[1] + uMPC[2]*uMPC[2])*ex_Fs;
-            gnc_inner_step(&ic, &ist, qCmd, TcN, uMPC, x, ex_dtPlant, u);
+            for (i = 0; i < 7; i++) uM[i] = uMPC[i];
+            for (i = 0; i < 4; i++) qC[i] = qCmd[i];
+            if (lam < 1.0) {
+                /* 着陸コミット: 姿勢コマンドを直立へフェードし横FFを絞る */
+                qC[0] = lam*qCmd[0] + (1.0-lam);
+                qC[1] = lam*qCmd[1];  qC[2] = lam*qCmd[2];  qC[3] = lam*qCmd[3];
+                nqC = sqrt(qC[0]*qC[0]+qC[1]*qC[1]+qC[2]*qC[2]+qC[3]*qC[3]);
+                if (nqC > 1e-12) for (i = 0; i < 4; i++) qC[i] /= nqC;
+                uM[1] *= lam;  uM[2] *= lam;
+            }
+            gnc_inner_step(&ic, &ist, qC, TcN, uM, x, ex_dtPlant, u);
         }
         /* --- エンジンカットオフ (ホバースラム: 低高度で停止したら落下着地) --- */
         if (ex_cutoffAlt > 0.0 && !cutDone && engNow > 0.0 &&

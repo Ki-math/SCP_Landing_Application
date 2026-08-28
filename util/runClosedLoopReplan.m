@@ -106,11 +106,15 @@ tauT = gp('tauThr', 0.10);        % スロットル1次遅れ時定数 [s]
 wnG  = 2*pi*gp('fGim', 6);        % TVC(ジンバル) 2次系の固有周波数 [Hz]
 ztG  = gp('ztGim', 0.707);        % 同 減衰比
 tauF = gp('tauFlap', 0.20);       % 舵面1次遅れ時定数 [s]
+thrLead = gp('thrLead', 0);       % 方式2: スロットル1次遅れのリード補償 (0=なし, 1=標準)
+                                  % ホバースラムでは遅れ0.1sが制動精度を落とし
+                                  % 「停止高すぎ->落下」の分散を生む. 補償で緩和
 actRL = gp('actRateLim', 0);      % 方式2: アクチュエータのスルーレート飽和を有効化
                                   % (機体諸元 tvcRate/flapRate でハード制限.
                                   %  現行の内ループ設計では tvc>=40, flap>=30 deg/s
                                   %  程度が閉ループ成立の目安. 既定は遅れ動特性のみ)
 qCmd = x0(7:10)/norm(x0(7:10));  Tc = 0;  uMPC = zeros(7,1);  Tint = 0;  dvF = 0;
+TcPrev = 0;
 log.t=[]; log.x=[]; log.u=[]; log.qpT=[]; log.st={};
 rp.n=0; rp.ok=0; rp.time=[]; rp.t=[];
 [hTab,tTab] = altTable(refD, sc);                   %% 高度→参照時刻 の逆引き表
@@ -196,12 +200,22 @@ for s = 0:nStep-1
     %% --- 姿勢内ループ + アクチュエータ 10 ms (方式2) ---
     if inner
         Tc = norm([T1a; uMPC(2:3)])*cfg.Fs;         % 速度FB込みの推力大きさ
-        %% 姿勢誤差 (機体系小角ベクトル): qe = q^-1 (x) qCmd
+        %% 着陸コミット (lam<1): 姿勢コマンドを直立へフェードし横推力FFを絞る.
+        %% 参照終端への最終追い込みが接地間際の姿勢・レートを乱すのを防ぐ
+        %% (方式1の姿勢レートダンピング切替と同じ思想. カットオフ落下中の
+        %%  傾斜増大 37deg -> 数deg に低減, 実測)
+        qC = qCmd;  uFF = uMPC(2:3);
+        if lam < 1
+            qC = lam*qCmd + (1-lam)*[1;0;0;0];
+            nqC = norm(qC);  if nqC > eps, qC = qC/nqC; end
+            uFF = lam*uMPC(2:3);
+        end
+        %% 姿勢誤差 (機体系小角ベクトル): qe = q^-1 (x) qC
         q = x(7:10);
-        qe = [ q(1)*qCmd(1)+q(2)*qCmd(2)+q(3)*qCmd(3)+q(4)*qCmd(4);
-               q(1)*qCmd(2)-q(2)*qCmd(1)-q(3)*qCmd(4)+q(4)*qCmd(3);
-               q(1)*qCmd(3)+q(2)*qCmd(4)-q(3)*qCmd(1)-q(4)*qCmd(2);
-               q(1)*qCmd(4)-q(2)*qCmd(3)+q(3)*qCmd(2)-q(4)*qCmd(1) ];
+        qe = [ q(1)*qC(1)+q(2)*qC(2)+q(3)*qC(3)+q(4)*qC(4);
+               q(1)*qC(2)-q(2)*qC(1)-q(3)*qC(4)+q(4)*qC(3);
+               q(1)*qC(3)+q(2)*qC(4)-q(3)*qC(1)-q(4)*qC(2);
+               q(1)*qC(4)-q(2)*qC(3)+q(3)*qC(2)-q(4)*qC(1) ];
         eAtt = 2*sign(qe(1))*qe(2:4);                 % [roll;pitch;yaw] 誤差 [rad]
         wB = x(11:13)/sc.T;                           % 角速度 [rad/s]
         aDes = wnAtt^2*eAtt - 2*ztAtt*wnAtt*wB;       % 目標角加速度 [rad/s^2]
@@ -211,7 +225,7 @@ for s = 0:nStep-1
         T3c =  aDes(2)*Jyy/Lrt;   T2c = -aDes(3)*Jzz/Lrt;
         %% ジンバル角コマンド = MPC横推力のフィードフォワード + PD補正 (小角)
         %% (FFなしのPD単独では フリップの大機動モーメントを再構成できず破綻する)
-        dCmd = (uMPC(2:3)*cfg.Fs + [T2c; T3c])/max(Tc,1e3);
+        dCmd = (uFF*cfg.Fs + [T2c; T3c])/max(Tc,1e3);
         dCmd = max(min(dCmd, cfg.veh.tvcMax), -cfg.veh.tvcMax);
         %% アクチュエータ: TVC 2次系, スロットル/舵面 1次遅れ (前進オイラー 10ms)
         %% + スルーレート飽和 (機体諸元 tvcRate / flapRate)
@@ -220,7 +234,15 @@ for s = 0:nStep-1
             act.dd = max(min(act.dd, plantCfg.veh.tvcRate), -plantCfg.veh.tvcRate);
         end
         act.d  = act.d + dtP*act.dd;
-        act.Tm = act.Tm + dtP*(Tc - act.Tm)/tauT;
+        %% スロットルコマンド (thrLead>0 で1次遅れのリード補償)
+        if thrLead > 0
+            Tcm = Tc + thrLead*tauT*(Tc - TcPrev)/dtP;
+            Tcm = min(max(Tcm, 0), engNow*cfg.Tmax1*cfg.Fs);
+        else
+            Tcm = Tc;
+        end
+        TcPrev = Tc;
+        act.Tm = act.Tm + dtP*(Tcm - act.Tm)/tauT;
         df = (uMPC(4:7) - act.f)/tauF;
         if actRL
             df = max(min(df, plantCfg.veh.flapRate), -plantCfg.veh.flapRate);
