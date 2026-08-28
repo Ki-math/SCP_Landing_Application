@@ -1,5 +1,5 @@
-/* plan_example_data.h — scpk_planIterEmb 呼び出し例の実データ (自動生成).
- * 生成: exportPlanExample.m / 元データ: landing_vert.mat (Starship着陸解) */
+/* plan_example_data.h — GNC呼び出し例の実データ (自動生成).
+ * 生成: exportPlanExample.m / 元データ: landing_vert.mat (starship 着陸解) */
 #ifndef PLAN_EXAMPLE_DATA_H
 #define PLAN_EXAMPLE_DATA_H
 #include <math.h>

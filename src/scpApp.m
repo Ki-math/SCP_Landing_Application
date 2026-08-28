@@ -529,8 +529,8 @@ function doZip()
     c = onCleanup(@() delete(d));
     say('コード生成中 (数分)...');
     try
-        setProg(d, 0.15, 'MEX/lib コード生成中...');
-        zipf = scpCodegenZip(true);
+        setProg(d, 0.15, sprintf('MEX/lib コード生成中... (例データ: %s)', W.veh.Value));
+        zipf = scpCodegenZip(true, W.veh.Value);
         setProg(d, 0.95, 'パッケージ化...');
         finish(d);
         say(['完了: ' zipf]);

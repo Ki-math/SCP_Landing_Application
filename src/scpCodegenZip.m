@@ -1,8 +1,12 @@
-function zipf = scpCodegenZip(regen)
+function zipf = scpCodegenZip(regen, vehicle)
 %SCPCODEGENZIP  組み込み用の純C/C++ソースパッケージを生成し zip にまとめる.
 %
-%   ZIPF = SCPCODEGENZIP()      既存の生成物からパッケージ (生成物が無ければ生成)
-%   ZIPF = SCPCODEGENZIP(true)  コード生成からやり直してパッケージ (数分)
+%   ZIPF = SCPCODEGENZIP()            既存の生成物からパッケージ (無ければ生成)
+%   ZIPF = SCPCODEGENZIP(true)        コード生成からやり直してパッケージ (数分)
+%   ZIPF = SCPCODEGENZIP(_, VEHICLE)  例データの機体 'starship'(既定)|'falcon9'
+%
+%   生成コード (gnc/) は機体非依存 (cfg で差し替えるプラグイン設計) なので
+%   VEHICLE で変わるのは examples/ の実データと検証対象だけ.
 %
 %   パッケージ内容 (MATLAB/MEX 依存ゼロ. コンパイラだけでビルド可能):
 %     gnc/      GNCコアのフルC (MATLAB Coder生成, BLASフリー).
@@ -24,6 +28,7 @@ function zipf = scpCodegenZip(regen)
 src = fileparts(mfilename('fullpath'));  proj = fileparts(src);
 addpath(src, fullfile(src,'cpp'), fullfile(proj,'util'));
 if nargin < 1, regen = false; end
+if nargin < 2 || isempty(vehicle), vehicle = 'starship'; end
 
 libdir = fullfile(src,'cpp','codegen_planiter_lib');
 if regen || ~exist(fullfile(libdir,'scpk_planIterEmb.h'),'file') || ...
@@ -32,9 +37,7 @@ if regen || ~exist(fullfile(libdir,'scpk_planIterEmb.h'),'file') || ...
     codegenPlanIter();
 end
 exdata = fullfile(libdir,'examples_data','plan_example_data.h');
-if regen || ~exist(exdata,'file')
-    exportPlanExample();
-end
+exportPlanExample(vehicle);      % 例データは常に再生成 (機体・最新計画に追随. 数秒)
 
 %% --- ステージング ---
 stg = fullfile(proj,'embedded_pkg');

@@ -2,7 +2,7 @@
  * File: _coder_gncCore_lib_info.h
  *
  * MATLAB Coder version            : 24.2
- * C/C++ source code generated on  : 2026/08/28 22:18:33
+ * C/C++ source code generated on  : 2026/08/29 00:13:12
  */
 
 #ifndef _CODER_GNCCORE_LIB_INFO_H

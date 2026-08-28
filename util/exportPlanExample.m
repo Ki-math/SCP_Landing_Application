@@ -1,16 +1,25 @@
-function exportPlanExample()
-%EXPORTPLANEXAMPLE  計画1反復デモ用の実データCヘッダを生成する.
+function exportPlanExample(vehicle)
+%EXPORTPLANEXAMPLE  計画/追従デモ用の実データCヘッダを生成する.
+%
+%   EXPORTPLANEXAMPLE()            Starship の計画解から生成 (既定)
+%   EXPORTPLANEXAMPLE('falcon9')   Falcon9 の計画解から生成
 %
 %   codegen_planiter_lib/examples_data/plan_example_data.h を出力.
-%   内容: エントリポイント scpk_planIterEmb の全引数 (Starship着陸問題の
-%   収束済み解を初期推定にした実データ) と, cfg/pp/qp 構造体を埋める
-%   fill_cfg / fill_pp / fill_qp 関数. main_planner_example.c から使う.
+%   内容: scpk_planIterEmb / scpk_trackStepEmb の全引数 (指定機体の収束済み
+%   計画解 results/landing_*.mat を初期推定にした実データ) と, 構造体を埋める
+%   fill_cfg / fill_pp / fill_qp / fill_tp 関数. examples/ の各 main から使う.
+%   cfg は計画ファイルに保存されたもの (GUIで諸元を変えた場合も追随).
 %
-%   See also CODEGENPLANITER, SCPCODEGENZIP
+%   生成コード (gnc/) 自体は機体非依存で, ここで変わるのは例データのみ.
+%
+%   See also CODEGENPLANITER, SCPCODEGENZIP, VERIFYEMBEDDED
+if nargin < 1 || isempty(vehicle), vehicle = 'starship'; end
 here = fileparts(mfilename('fullpath'));  proj = fileparts(here);
 addpath(fullfile(proj,'src'));
-cfg = scpk.model6();
-S = load(fullfile(proj,'results','landing_vert.mat'));
+if strcmpi(vehicle,'falcon9'), planFile = 'landing_falcon9.mat';
+else,                          planFile = 'landing_vert.mat'; end
+S = load(fullfile(proj,'results',planFile));
+cfg = S.cfg;                      % 計画時の機体定数 (諸元オーバーライド込み)
 sol=S.sol; opt=S.opt; x0=S.x0; sc=cfg.sc;
 sx=[repmat(sc.L,3,1);repmat(sc.V,3,1);ones(4,1);repmat(1/sc.T,3,1);cfg.m0];
 xT=[cfg.hmin;0;0;0;0;0;0;0;0;0;0;0];
@@ -24,8 +33,8 @@ outdir = fullfile(proj,'src','cpp','codegen_planiter_lib','examples_data');
 if ~exist(outdir,'dir'), mkdir(outdir); end
 fid = fopen(fullfile(outdir,'plan_example_data.h'),'w');
 c = onCleanup(@() fclose(fid));
-fprintf(fid,'/* plan_example_data.h — scpk_planIterEmb 呼び出し例の実データ (自動生成).\n');
-fprintf(fid,' * 生成: exportPlanExample.m / 元データ: landing_vert.mat (Starship着陸解) */\n');
+fprintf(fid,'/* plan_example_data.h — GNC呼び出し例の実データ (自動生成).\n');
+fprintf(fid,' * 生成: exportPlanExample.m / 元データ: %s (%s 着陸解) */\n', planFile, vehicle);
 fprintf(fid,'#ifndef PLAN_EXAMPLE_DATA_H\n#define PLAN_EXAMPLE_DATA_H\n');
 fprintf(fid,'#include <math.h>\n#include "gncCore_lib_types.h"\n\n');
 
@@ -70,7 +79,8 @@ args = struct('x0nd',x0./sx, 'xT',xT, 'xl',sol.xhat, 'ul',sol.uhat, ...
     'gl',sol.ghat, 'sigl',sol.sigma/sc.T, 'phase',double(opt.phase), ...
     'eng',double(opt.engSched), 'dtv',dtv, 'tiltN',opt.tiltMaxNode, ...
     'cfg',cfg, 'pp',pp, 'qp',qp, 'tp',tp, 'H',topt.H, 'dtMpc',topt.dt, ...
-    'dtCtrl',topt.dtCtrl, 'dtPlant',topt.dtPlant, 'refD',refD);   %#ok<NASGU>
+    'dtCtrl',topt.dtCtrl, 'dtPlant',topt.dtPlant, 'refD',refD, ...
+    'vehicle',vehicle);   %#ok<NASGU>
 save(fullfile(proj,'results','plan_example_args.mat'),'-struct','args');
 end
 

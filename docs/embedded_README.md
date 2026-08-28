@@ -169,6 +169,14 @@ int pipg_solve_csc(                       /* 返り値 = status (上と同じ) *
 - MATLAB 参照実装 (scpk.solveQP) とビット一致を検証済み。
 - 非収束時も status で必ず原因を名乗ります (infeasibility 証明書つき)。
 
+## 例データの機体
+
+生成コード (gnc/) は**機体非依存**です — 機体は実行時引数 `cfg` で渡す
+プラグイン設計で, Starship でも Falcon9 でも独自機体でも同じコードが動きます。
+`examples/plan_example_data.h` の実データだけが特定機体の計画解で、
+`scpCodegenZip(regen, 'falcon9')` (GUIでは選択中の機体に自動追随) で
+切り替えられます。`verifyEmbedded` もそのデータの機体で検証します。
+
 ## 引数データの作り方 (ホストMATLAB側)
 
 `examples/plan_example_data.h` は雛形です。自機体・自シナリオのデータは
