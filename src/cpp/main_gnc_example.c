@@ -26,8 +26,8 @@
 #include "plan_example_data.h"
 #include "gnc_guidance.h"
 
-#define DT_PLANT 0.01           /* プラント積分刻み [s] */
 #define THR_EFF  0.97           /* 外乱: 推力効率 (実推力 = 指令 x 0.97) */
+/* プラント積分刻みは ex_dtPlant, MPC実行周期は ex_dtCtrl (track6Options 由来) */
 
 /* プラント1ステップ (RK4, 無次元状態. 推力効率誤差を指令に乗せる) */
 static void plant_step(double x[14], const double u[7], const struct0_T *cfg,
@@ -91,7 +91,7 @@ int main(void)
     engk_size[0] = 1; engk_size[1] = H;
 
     printf("GNC統合ループ開始 (追従MPC %.0f ms 周期, プラント %.0f ms, 推力効率 %.2f)\n",
-           ex_dtCtrl*1000.0, DT_PLANT*1000.0, THR_EFF);
+           ex_dtCtrl*1000.0, ex_dtPlant*1000.0, THR_EFF);
     while (t < tEnd) {
         /* --- 追従MPC (時刻同期. ホバースラムなら gnc_dispatch_time で高度同期) --- */
         gnc_ref_window(&ref, t, ex_dtMpc, H, xr, ur, engk);
@@ -104,10 +104,10 @@ int main(void)
         for (i = 0; i < zo_size[0]; i++) zw[i] = zo[i];
         zw_size[0] = zo_size[0];
 
-        /* --- プラント (10 ms x 実行周期分) --- */
-        for (sub = 0; sub < (int)(ex_dtCtrl/DT_PLANT + 0.5); sub++) {
-            plant_step(x, u0, &cfg, DT_PLANT/ex_scT);
-            t += DT_PLANT;
+        /* --- プラント (ex_dtPlant x 実行周期分) --- */
+        for (sub = 0; sub < (int)(ex_dtCtrl/ex_dtPlant + 0.5); sub++) {
+            plant_step(x, u0, &cfg, ex_dtPlant/ex_scT);
+            t += ex_dtPlant;
             if (x[0]*ex_scL <= ex_tdAlt) break;
         }
         if (x[0]*ex_scL <= ex_tdAlt) break;

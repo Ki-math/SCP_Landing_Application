@@ -363,8 +363,8 @@ prob = scpWindTune(prob);
 | `refSync` | 'time' | 参照同期。'alt'=高度で参照を引く（ホバースラムの点火タイミング分散を吸収） |
 | `velFB` / `velFBi` | 0 / 0 | 鉛直速度FBの比例/積分ゲイン（ホバー不能機のブレーキ補償） |
 | `latFreezeAlt` | 0=無効 | 着陸コミット高度 [m]。以下で横推力を姿勢レートダンピング専用に切替 |
-| `dtMpc` | 0.10 | 追従MPCの実行周期 [s]（dtPlantの整数倍に丸め）。予測の刻み `track.dt` とは別物 |
-| `dtPlant` | 0.01 | プラント積分と10ms層（速度FB・姿勢内ループ・アクチュエータ）の刻み [s] |
+| `dtMpc` | track.dtCtrl (0.10) | 追従MPCの実行周期 [s]（dtPlantの整数倍に丸め）。予測の刻み `track.dt` とは別物。既定値は `track6Options.dtCtrl` に一元化 |
+| `dtPlant` | track.dtPlant (0.01) | プラント積分と10ms層（速度FB・姿勢内ループ・アクチュエータ）の刻み [s] |
 | `noSave` / `noPlot` | 0 / 0 | 保存/描画の抑制 |
 
 `refSync, velFB, velFBi, latFreezeAlt, ctlMode` は機体テンプレート（scpProblem）から

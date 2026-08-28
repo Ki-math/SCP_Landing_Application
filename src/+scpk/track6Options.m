@@ -8,6 +8,9 @@ function topt = track6Options()
 %   See also SCPK.TRACK6STEP, SCPK.PLAN6FT
 topt.H  = 25;          % 予測ホライズン節点数
 topt.dt = 0.2;         % 節点間隔 [s] (ホライズン 5 s; 論文 t_h=5s と同じ)
+topt.dtCtrl  = 0.10;   % 追従MPCの実行周期 [s] (閉ループ prm.dtMpc の既定値.
+                       %  コード生成例 ex_dtCtrl もここを参照)
+topt.dtPlant = 0.01;   % プラント積分・10ms層の刻み [s] (閉ループ prm.dtPlant の既定値)
 %% 位置は姿勢経由の二重積分応答なので, 短いホライズンでは位置フィードバックが
 %% 実質効かない (1.2 s で実測: 位置誤差が単調増大して墜落).
 

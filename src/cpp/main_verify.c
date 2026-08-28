@@ -27,8 +27,7 @@
 #include "gnc_guidance.h"
 #include <math.h>
 
-#define VF_DT_PLANT 0.01
-#define VF_THR_EFF  0.97
+#define VF_THR_EFF  0.97   /* プラント積分刻みは ex_dtPlant (track6Options.dtPlant) を参照 */
 
 /* プラント1ステップ (RK4, 無次元状態. main_gnc_example.c と同一) */
 static void vf_plant_step(double x[14], const double u[7], const struct0_T *cfg,
@@ -189,7 +188,7 @@ int main(int argc, char **argv)
         xr_size[0] = 14;  xr_size[1] = H + 1;
         ur_size[0] = 7;   ur_size[1] = H;
         engk_size[0] = 1; engk_size[1] = H;
-        nSub = (int)(ex_dtCtrl/VF_DT_PLANT + 0.5);   /* 実行周期100msで回す */
+        nSub = (int)(ex_dtCtrl/ex_dtPlant + 0.5);   /* 実行周期 (track6Options.dtCtrl) */
         while (t < tEnd) {
             double msMpc;
             clock_t cM;
@@ -206,8 +205,8 @@ int main(int argc, char **argv)
             for (i = 0; i < zo_size[0]; i++) zw[i] = zo[i];
             zw_size[0] = zo_size[0];
             for (sub = 0; sub < nSub; sub++) {
-                vf_plant_step(x, u0, &cfg, VF_DT_PLANT/ex_scT);
-                t += VF_DT_PLANT;
+                vf_plant_step(x, u0, &cfg, ex_dtPlant/ex_scT);
+                t += ex_dtPlant;
                 if (x[0]*ex_scL <= ex_tdAlt) break;
             }
             if (x[0]*ex_scL <= ex_tdAlt) break;

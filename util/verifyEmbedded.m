@@ -105,7 +105,7 @@ function L = gncTwin(A)
 %GNCTWIN  main_verify.c のGNC閉ループと同一のループをMATLAB参照実装で実行.
 cfg = A.cfg;  tp = A.tp;  H = A.H;  refD = A.refD;  sc = cfg.sc;
 sx = [repmat(sc.L,3,1); repmat(sc.V,3,1); ones(4,1); repmat(1/sc.T,3,1); cfg.m0];
-dtP = 0.01;  thrEff = 0.97;  tdAlt = cfg.hmin*sc.L;
+dtP = A.dtPlant;  thrEff = 0.97;  tdAlt = cfg.hmin*sc.L;
 nSub = round(A.dtCtrl/dtP);        % 実行周期 (予測ノード間隔 dtMpc とは別)
 x = refD.xhat(:,1);  zw = zeros(21*H,1);  t = 0;  tEnd = refD.t(end) + 10;
 L = zeros(0,15);

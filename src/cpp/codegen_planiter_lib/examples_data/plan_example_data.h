@@ -2668,7 +2668,8 @@ static const double ex_ref_eng[619] = {
 
 static const int    ex_H     = 25;    /* 追従ホライズン節点 */
 static const double ex_dtMpc = 0.20000000000000001;  /* 予測ノード間隔 [s] (参照窓の刻み) */
-static const double ex_dtCtrl = 0.1;  /* 追従MPCの実行周期 [s] */
+static const double ex_dtCtrl = 0.10000000000000001;  /* 追従MPCの実行周期 [s] (track6Options.dtCtrl) */
+static const double ex_dtPlant = 0.01;  /* プラント積分刻み [s] (track6Options.dtPlant) */
 static const double ex_scL = 1000, ex_scV = 100, ex_scT = 10;
 static const double ex_m0 = 130000, ex_Fs = 1300000;
 static const double ex_tdAlt = 31;  /* 接地判定高度 [m] */
