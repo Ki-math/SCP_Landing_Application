@@ -16,6 +16,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "scpk_planIterEmb.h"
 #include "scpk_trackStepEmb.h"
 #include "gncCore_lib_emxAPI.h"
@@ -85,8 +86,13 @@ int main(int argc, char **argv)
         int xs_size[2], us_size[2], gs_size[2], ss_size[2];
         emxArray_real_T *zWarm = emxCreate_real_T(0, 1);
         emxArray_real_T *zOut  = emxCreate_real_T(0, 1);
+        double tCold, tWarm, ms;
+        int r, st9, it9;
+        double nu9, step9;
+        clock_t c0;
         FILE *f = openOut(dir, "verify_plan.txt");
         if (!f) { printf("verify_plan.txt を開けません\n"); return 2; }
+        c0 = clock();
         scpk_planIterEmb(ex_x0nd, ex_xT,
                          ex_xl, ex_xl_size, ex_ul, ex_ul_size,
                          ex_gl, ex_gl_size, ex_sigl, ex_sigl_size,
@@ -95,7 +101,27 @@ int main(int argc, char **argv)
                          &cfg, &pp, &qp, zWarm,
                          xs, xs_size, us, us_size, gs, gs_size,
                          ss, ss_size, &st, &iters, &nu, &step, zOut);
+        tCold = (double)(clock() - c0) * 1000.0 / CLOCKS_PER_SEC;
+        /* warm 実行時間 (5回の最小値: 再計画サイクルの実運用形) */
+        tWarm = 1e30;
+        for (r = 0; r < 5; r++) {
+            static double xs9[14*201], us9[7*200], gs9[200];
+            double ss9[8];
+            int xs9s[2], us9s[2], gs9s[2], ss9s[2];
+            c0 = clock();
+            scpk_planIterEmb(ex_x0nd, ex_xT,
+                             ex_xl, ex_xl_size, ex_ul, ex_ul_size,
+                             ex_gl, ex_gl_size, ex_sigl, ex_sigl_size,
+                             ex_phase, ex_phase_size, ex_eng, ex_eng_size,
+                             ex_dtv, ex_dtv_size, ex_tiltN, ex_tiltN_size,
+                             &cfg, &pp, &qp, zOut,
+                             xs9, xs9s, us9, us9s, gs9, gs9s,
+                             ss9, ss9s, &st9, &it9, &nu9, &step9, zWarm);
+            ms = (double)(clock() - c0) * 1000.0 / CLOCKS_PER_SEC;
+            if (ms < tWarm) tWarm = ms;
+        }
         fprintf(f, "st %d\niters %d\nnu %.17g\nstep %.17g\n", st, iters, nu, step);
+        fprintf(f, "tColdMs %.6g\ntWarmMs %.6g\n", tCold, tWarm);
         dump(f, "xs", xs, xs_size[0]*xs_size[1]);
         dump(f, "us", us, us_size[0]*us_size[1]);
         dump(f, "ss", ss, ss_size[1]);
@@ -165,14 +191,18 @@ int main(int argc, char **argv)
         engk_size[0] = 1; engk_size[1] = H;
         nSub = (int)(ex_dtMpc/VF_DT_PLANT + 0.5);
         while (t < tEnd) {
-            fprintf(f, "%.17g", t);
-            for (i = 0; i < 14; i++) fprintf(f, " %.17g", x[i]);
-            fprintf(f, "\n");
+            double msMpc;
+            clock_t cM;
             gnc_ref_window(&ref, t, ex_dtMpc, H, xr, ur, engk);
             for (i = 0; i < 14; i++) xc[i] = x[i] * sx[i];
+            cM = clock();
             scpk_trackStepEmb(xc, xr, xr_size, ur, ur_size, engk, engk_size,
                               &cfg, &tp, zw, zw_size, u0, zo, zo_size,
                               qCmd, &st2, &it2);
+            msMpc = (double)(clock() - cM) * 1000.0 / CLOCKS_PER_SEC;
+            fprintf(f, "%.17g", t);
+            for (i = 0; i < 14; i++) fprintf(f, " %.17g", x[i]);
+            fprintf(f, " %.6g\n", msMpc);
             for (i = 0; i < zo_size[0]; i++) zw[i] = zo[i];
             zw_size[0] = zo_size[0];
             for (sub = 0; sub < nSub; sub++) {
@@ -184,7 +214,7 @@ int main(int argc, char **argv)
         }
         fprintf(f, "%.17g", t);
         for (i = 0; i < 14; i++) fprintf(f, " %.17g", x[i]);
-        fprintf(f, "\n");
+        fprintf(f, " 0\n");
         fclose(f);
         printf("gnc  : 接地 t=%.1fs 水平%.2fm -> verify_gnc.txt\n",
                t, ex_scL*sqrt(x[1]*x[1]+x[2]*x[2]));

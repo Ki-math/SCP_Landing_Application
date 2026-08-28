@@ -95,8 +95,9 @@ for i = 1:size(res,1)
 end
 fprintf('=== 総合判定: %s ===\n', tern(ok,'PASS (数値一致)','FAIL'));
 
-%% --- プロット: シミュレーション軌跡の重ね描き + 差 ---
-plotVerify(G, L, sc, res, ok);
+%% --- プロット: シミュレーション軌跡の重ね描き + 差 + 実行時間 ---
+perf = struct('tCold',P.tColdMs, 'tWarm',P.tWarmMs, 'dtMpc',A.dtMpc);
+plotVerify(G, L, sc, res, ok, perf);
 end
 
 
@@ -140,10 +141,10 @@ engk = reshape(interp1(tu, refD.engSched(:), min(tk(1:H), tu(end)), 'previous'),
 end
 
 
-function plotVerify(G, L, sc, res, ok)
-figure('Color','w','Position',[50 50 1250 700], ...
+function plotVerify(G, L, sc, res, ok, perf)
+figure('Color','w','Position',[30 30 1500 720], ...
        'Name','等価性検証: 生成コード(C) vs MATLAB参照実装');
-tl = tiledlayout(2,3,'Padding','compact','TileSpacing','compact');
+tl = tiledlayout(2,4,'Padding','compact','TileSpacing','compact');
 tiltOf = @(X) acosd(max(-1,min(1, 1-2*(X(:,9).^2 + X(:,10).^2))));
 nC = min(size(G,1), size(L,1));
 ax = nexttile(tl);  hold(ax,'on'); grid(ax,'on');
@@ -170,15 +171,35 @@ dpos = vecnorm((G(1:nC,2:4) - L(1:nC,2:4)).', 1)*sc.L;
 semilogy(ax, G(1:nC,1), max(dpos, 1e-16), 'k-','LineWidth',1.4);
 xlabel(ax,'t [s]'); ylabel(ax,'位置差 ||r_C - r_M|| [m]');
 title(ax,sprintf('閉ループ軌跡の差 (max %.1e m)', max(dpos)));
-ax = nexttile(tl);  axis(ax,'off');
-txt = cell(size(res,1)+2,1);
+
+%% 実行時間 (リアルタイム性): 追従MPC 1周期の計測 (C, gcc -O2)
+ax = nexttile(tl);  hold(ax,'on'); grid(ax,'on');
+msC = G(1:end-1,16);   tC = G(1:end-1,1);
+budget = perf.dtMpc*1000;
+plot(ax, tC, msC, 'b-','LineWidth',1.2);
+yline(ax, budget, 'r--','LineWidth',1.4, ...
+      'Label',sprintf('制御周期 %.0f ms', budget), 'LabelHorizontalAlignment','left');
+ylim(ax, [0, max(budget*1.15, max(msC)*1.2)]);
+xlabel(ax,'t [s]'); ylabel(ax,'実行時間 [ms]');
+title(ax, sprintf('追従MPC実行時間 (平均%.1f / 最大%.1f ms, 余裕%.0f%%)', ...
+      mean(msC), max(msC), 100*(1 - max(msC)/budget)));
+
+ax = nexttile(tl, [1 1]);  axis(ax,'off');
+txt = cell(size(res,1)+7,1);
 txt{1} = sprintf('総合判定: %s', tern(ok,'PASS (数値一致)','FAIL'));
 txt{2} = '';
 for i = 1:size(res,1)
     txt{i+2} = sprintf('[%s] %s  (%.1e)', tern(res{i,3},'OK','NG'), res{i,1}, res{i,2});
 end
-text(ax, 0, 0.95, txt, 'Units','normalized', 'VerticalAlignment','top', ...
-     'FontName','monospaced', 'FontSize', 9, 'Interpreter','none');
+n0 = size(res,1) + 3;
+txt{n0}   = '';
+txt{n0+1} = '--- リアルタイム性 (C, gcc -O2 実測) ---';
+txt{n0+2} = sprintf('計画1反復  cold %.0f ms / warm %.1f ms', perf.tCold, perf.tWarm);
+txt{n0+3} = sprintf('追従MPC   平均 %.1f ms / 最大 %.1f ms', mean(msC), max(msC));
+txt{n0+4} = sprintf('制御周期 %.0f ms に対し 最悪ケース余裕 %.0f%%', ...
+                    budget, 100*(1 - max(msC)/budget));
+text(ax, 0, 0.98, txt, 'Units','normalized', 'VerticalAlignment','top', ...
+     'FontName','monospaced', 'FontSize', 8.5, 'Interpreter','none');
 title(tl, '等価性検証: コンパイル済みC (gcc -O2) vs MATLAB参照実装 (実線=C, 破線=MATLAB)');
 end
 
@@ -196,7 +217,7 @@ S = struct();  i = 1;
 while i <= numel(txt)
     parts = strsplit(strtrim(txt{i}));
     key = parts{1};  val = str2double(parts{2});
-    if ismember(key, {'st','iters','nu','step'})
+    if ismember(key, {'st','iters','nu','step','tColdMs','tWarmMs'})
         S.(key) = val;  i = i + 1;
     else
         n = val;  v = zeros(n,1);
