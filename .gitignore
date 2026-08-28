@@ -4,6 +4,7 @@
 *.autosave
 embedded_pkg/
 project_pkg/
+scp_landing_embedded/
 
 # MATLAB Coder のビルド作業ディレクトリ (再生成可能. 純Cソースの
 # codegen_planiter_lib はビルド不要で使えるようリポジトリに含める)
