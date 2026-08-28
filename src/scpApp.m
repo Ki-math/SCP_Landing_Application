@@ -46,6 +46,8 @@ tabE = uitab(tgL,'Title','環境');
 gtE = uigridlayout(tabE,[2 1],'RowHeight',{'fit','1x'},'Padding',[4 4 4 4],'RowSpacing',5);
 tabT = uitab(tgL,'Title','調整');
 gtT = uigridlayout(tabT,[3 1],'RowHeight',{'fit','fit','fit'},'Padding',[4 4 4 4],'RowSpacing',5);
+tabC = uitab(tgL,'Title','制御');
+gtC = uigridlayout(tabC,[3 1],'RowHeight',{'fit','fit','fit'},'Padding',[4 4 4 4],'RowSpacing',5);
 tabM = uitab(tgL,'Title','MCS');
 gtM = uigridlayout(tabM,[2 1],'RowHeight',{'fit','1x'},'Padding',[4 4 4 4],'RowSpacing',5);
 tabP = uitab(tgL,'Title','再生');
@@ -153,6 +155,45 @@ uilabel(g4,'Text','同 ダウンレンジ [m]');       W.dr0d = uieditfield(g4,'
 uilabel(g4,'Text','初期速度offset x (機体) [m/s]'); W.dv0x = uieditfield(g4,'numeric','Value',0);
 uilabel(g4,'Text','同 y [m/s]');                W.dv0y = uieditfield(g4,'numeric','Value',0);
 uilabel(g4,'Text','同 z [m/s]');                W.dv0z = uieditfield(g4,'numeric','Value',0);
+
+%% ---- 制御: 誘導 (機体切替でテンプレート値にリセット) ----
+pC1 = uipanel(gtC,'Title','誘導 (ホバースラム系. 機体テンプレート既定)');
+gC1 = uigridlayout(pC1,[3 4],'ColumnWidth',{'fit','1x','fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
+uilabel(gC1,'Text','参照同期');
+W.refS = uidropdown(gC1,'Items',{'時刻同期 (time)','高度同期 (alt)'}, ...
+    'Tooltip','alt=点火ディスパッチ: 高度で参照を引きホバースラムのタイミング分散を吸収');
+uilabel(gC1,'Text','鉛直速度FB [1/s]');   W.vFB  = uieditfield(gC1,'numeric', ...
+    'Tooltip','参照v(h)への推力トリム比例ゲイン velFB (ホバー不能機のブレーキ補償)');
+uilabel(gC1,'Text','同 積分 [1/s²]');     W.vFBi = uieditfield(gC1,'numeric', ...
+    'Tooltip','velFBi. 大きくすると鉛直は締まるが傾斜が悪化 (発散注意)');
+uilabel(gC1,'Text','着陸コミット高度 [m]'); W.latF = uieditfield(gC1,'numeric', ...
+    'Tooltip','latFreezeAlt. これ以下で横推力を姿勢レートダンピング専用に切替 (0=無効)');
+uilabel(gC1,'Text','カットオフ高度 [m]');  W.cutA = uieditfield(gC1,'numeric', ...
+    'Tooltip','cutoffAlt. 接地高度+これ以下でほぼ停止したら機関停止し落下着地 (0=無効)');
+uilabel(gC1,'Text','同 速度閾値 [m/s]');   W.cutV = uieditfield(gC1,'numeric','Value',-0.5, ...
+    'Tooltip','cutoffV. 鉛直速度がこれ以上 (ほぼ停止/上昇) で発動');
+
+%% ---- 制御: 内ループ・アクチュエータ (方式2) ----
+pC2 = uipanel(gtC,'Title','姿勢内ループ / アクチュエータ (方式2で使用)');
+gC2 = uigridlayout(pC2,[4 4],'ColumnWidth',{'fit','1x','fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
+uilabel(gC2,'Text','姿勢帯域 [rad/s]');    W.wnA  = uieditfield(gC2,'numeric','Value',1.2,'Tooltip','wnAtt');
+uilabel(gC2,'Text','同 減衰比');           W.ztA  = uieditfield(gC2,'numeric','Value',0.9,'Tooltip','ztAtt');
+uilabel(gC2,'Text','スロットル遅れ [s]');  W.tauT = uieditfield(gC2,'numeric','Value',0.10,'Tooltip','tauThr (1次遅れ)');
+uilabel(gC2,'Text','TVC周波数 [Hz]');      W.fG   = uieditfield(gC2,'numeric','Value',6,'Tooltip','fGim (2次系)');
+uilabel(gC2,'Text','TVC減衰比');           W.ztG  = uieditfield(gC2,'numeric','Value',0.707,'Tooltip','ztGim');
+uilabel(gC2,'Text','舵面遅れ [s]');        W.tauF = uieditfield(gC2,'numeric','Value',0.20,'Tooltip','tauFlap (1次遅れ)');
+W.aRL = uicheckbox(gC2,'Text','スルーレート飽和','Value',false, ...
+    'Tooltip',['actRateLim. 機体諸元 tvcRate/flapRate でハード制限. ' ...
+    '既定の実機値 (20/15deg/s) のまま有効化すると内ループが発散する点に注意 (ガイド§6)']);
+uilabel(gC2,'Text','');
+
+%% ---- 制御: 実行周期 ----
+pC3 = uipanel(gtC,'Title','実行周期');
+gC3 = uigridlayout(pC3,[1 4],'ColumnWidth',{'fit','1x','fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
+uilabel(gC3,'Text','MPC周期 [s]');        W.dtC = uieditfield(gC3,'numeric','Value',0.10, ...
+    'Tooltip','dtMpc. 追従MPCの実行周期 (プラント刻みの整数倍に丸め)');
+uilabel(gC3,'Text','プラント刻み [s]');    W.dtP = uieditfield(gC3,'numeric','Value',0.01, ...
+    'Tooltip','dtPlant. プラント積分と10ms層 (速度FB/内ループ/アクチュエータ) の刻み');
 
 %% ---- MCS ----
 p5 = uipanel(gtM,'Title','モンテカルロ');
@@ -287,6 +328,17 @@ function setDefaults()
     else
         W.ctl.Value = '方式1: MPC直接';
     end
+    %% 制御タブ: 誘導・周期をテンプレート値へ (内ループ/アクチュエータは共通既定)
+    gT = @(f,d) getNested(struct('p',pT),'p',f,d);   % テンプレートに無い項目は既定値
+    W.refS.Value = tern(strcmpi(gT('refSync','time'),'alt'), '高度同期 (alt)', '時刻同期 (time)');
+    W.vFB.Value  = gT('velFB',0);
+    W.vFBi.Value = gT('velFBi',0);
+    W.latF.Value = gT('latFreezeAlt',0);
+    W.cutA.Value = gT('cutoffAlt',0);
+    W.cutV.Value = -0.5;
+    W.wnA.Value = 1.2;  W.ztA.Value = 0.9;  W.tauT.Value = 0.10;
+    W.fG.Value = 6;  W.ztG.Value = 0.707;  W.tauF.Value = 0.20;  W.aRL.Value = false;
+    W.dtC.Value = pT.track.dtCtrl;  W.dtP.Value = pT.track.dtPlant;
     dfnV = dspDefaultFile();                      % 変動定義ファイルも機体に追随させる
     if ~isempty(dfnV), W.mcsF.Value = dfnV; end   % (他機体の絶対値諸元が混入すると
                                                   %  T/W<1等で全ラン墜落する. 実測)
@@ -362,6 +414,7 @@ function doCL()
                      'dr0',[W.dr0a.Value; W.dr0c.Value; W.dr0d.Value], ...
                      'dvB0',[W.dv0x.Value; W.dv0y.Value; W.dv0z.Value]);
         if startsWith(W.ctl.Value,'方式2'), prm.ctlMode = 'inner'; else, prm.ctlMode = 'direct'; end
+        prm = ctlPrm(prm);              % 制御タブの設定を反映
         prm.progressFcn = @(frac) setProg(d, frac, sprintf('シミュレーション %.0f%%', frac*100));
         S.R = scpClosedLoop(S.prob, prm);
         finish(d);
@@ -420,7 +473,9 @@ function doMCS()
     say(sprintf('MCS %dラン実行中%s...', W.mcsN.Value, tern(W.mcsPar.Value,' (並列)','')));
     try
         mprm = struct('parallel',W.mcsPar.Value, 'noPlot',1);
-        if startsWith(W.ctl.Value,'方式2'), mprm.ctlMode = 'inner'; end
+        if startsWith(W.ctl.Value,'方式2'), mprm.ctlMode = 'inner'; else, mprm.ctlMode = 'direct'; end
+        mprm.errTrig = W.eTr.Value;
+        mprm = ctlPrm(mprm);            % 制御タブの設定を反映
         mprm.progressFcn = @(done,N) setProg(d, done/N, sprintf('ラン %d/%d 完了 (%.0f%%)', done, N, 100*done/N));
         if strcmp(W.mcsSrc.Value,'GUI表')
             df = W.dspT.Data;                        % cell {名前,分布,p1,p2} を直接渡す
@@ -479,6 +534,19 @@ function setProg(d, frac, msg)
         drawnow limitrate;
     catch
     end
+end
+
+function prm = ctlPrm(prm)
+    %% 制御タブ (誘導/内ループ/アクチュエータ/周期) の値を閉ループ prm へ
+    prm.refSync = tern(contains(W.refS.Value,'alt'), 'alt', 'time');
+    prm.velFB = W.vFB.Value;          prm.velFBi = W.vFBi.Value;
+    prm.latFreezeAlt = W.latF.Value;
+    prm.cutoffAlt = W.cutA.Value;     prm.cutoffV = W.cutV.Value;
+    prm.wnAtt = W.wnA.Value;          prm.ztAtt = W.ztA.Value;
+    prm.tauThr = W.tauT.Value;        prm.fGim = W.fG.Value;
+    prm.ztGim = W.ztG.Value;          prm.tauFlap = W.tauF.Value;
+    prm.actRateLim = double(W.aRL.Value);
+    prm.dtMpc = W.dtC.Value;          prm.dtPlant = W.dtP.Value;
 end
 
 function fillTd(tbl, st)
@@ -707,10 +775,18 @@ function doGenScript()
         L{end+1} = '%% 3. 閉ループ (追従MPC + 再計画)';
         L{end+1} = sprintf('prm = struct(''thrEff'',%s, ''windY'',%s, ''navJump'',%s, ''errTrig'',%s, ...', ...
             n(W.thr.Value), n(W.wnd.Value), n(W.nav.Value), n(W.eTr.Value));
-        L{end+1} = sprintf('             ''dr0'',[%s;%s;%s], ''dvB0'',[%s;%s;%s], ''ctlMode'',''%s'');', ...
+        L{end+1} = sprintf('             ''dr0'',[%s;%s;%s], ''dvB0'',[%s;%s;%s], ''ctlMode'',''%s'', ...', ...
             n(W.dr0a.Value), n(W.dr0c.Value), n(W.dr0d.Value), ...
             n(W.dv0x.Value), n(W.dv0y.Value), n(W.dv0z.Value), ...
             tern(startsWith(W.ctl.Value,'方式2'),'inner','direct'));
+        L{end+1} = sprintf('             ''refSync'',''%s'', ''velFB'',%s, ''velFBi'',%s, ''latFreezeAlt'',%s, ...', ...
+            tern(contains(W.refS.Value,'alt'),'alt','time'), n(W.vFB.Value), n(W.vFBi.Value), n(W.latF.Value));
+        L{end+1} = sprintf('             ''cutoffAlt'',%s, ''cutoffV'',%s, ''wnAtt'',%s, ''ztAtt'',%s, ...', ...
+            n(W.cutA.Value), n(W.cutV.Value), n(W.wnA.Value), n(W.ztA.Value));
+        L{end+1} = sprintf('             ''tauThr'',%s, ''fGim'',%s, ''ztGim'',%s, ''tauFlap'',%s, ...', ...
+            n(W.tauT.Value), n(W.fG.Value), n(W.ztG.Value), n(W.tauF.Value));
+        L{end+1} = sprintf('             ''actRateLim'',%d, ''dtMpc'',%s, ''dtPlant'',%s);', ...
+            double(W.aRL.Value), n(W.dtC.Value), n(W.dtP.Value));
         L{end+1} = 'R = scpClosedLoop(prob, prm);';
         L{end+1} = 'plotClosedLoop(sol, R.log, cfg);';
         L{end+1} = 'disp(''--- 閉ループの接地状態 ---'');  disp(touchdownStats(R.xEnd, cfg));';
@@ -791,6 +867,13 @@ function s = gatherSettings()
                     'navJump',W.nav.Value,'errTrig',W.eTr.Value, ...
                     'dr0',[W.dr0a.Value W.dr0c.Value W.dr0d.Value], ...
                     'dvB0',[W.dv0x.Value W.dv0y.Value W.dv0z.Value]);
+    s.ctl  = struct('refSync',tern(contains(W.refS.Value,'alt'),'alt','time'), ...
+                    'velFB',W.vFB.Value,'velFBi',W.vFBi.Value, ...
+                    'latFreezeAlt',W.latF.Value,'cutoffAlt',W.cutA.Value,'cutoffV',W.cutV.Value, ...
+                    'wnAtt',W.wnA.Value,'ztAtt',W.ztA.Value,'tauThr',W.tauT.Value, ...
+                    'fGim',W.fG.Value,'ztGim',W.ztG.Value,'tauFlap',W.tauF.Value, ...
+                    'actRateLim',logical(W.aRL.Value), ...
+                    'dtMpc',W.dtC.Value,'dtPlant',W.dtP.Value);
     D = W.wndT.Data;
     s.env  = struct('atmIsa',double(strcmp(W.atm.Value,'ISA標準大気')), ...
                     'hPad_m',W.hPad.Value, 'windTune',logical(W.windTune.Value), ...
@@ -858,6 +941,21 @@ function applySettings(s)
     W.kFd.Value  = gs('der','kFlapDrag',W.kFd.Value);
     W.hMn.Value  = gs('der','hmin_m',W.hMn.Value);
     W.wMx.Value  = gs('der','wMax_degs',W.wMx.Value);
+    W.refS.Value = tern(strcmpi(gs('ctl','refSync','time'),'alt'), '高度同期 (alt)', '時刻同期 (time)');
+    W.vFB.Value  = gs('ctl','velFB',W.vFB.Value);
+    W.vFBi.Value = gs('ctl','velFBi',W.vFBi.Value);
+    W.latF.Value = gs('ctl','latFreezeAlt',W.latF.Value);
+    W.cutA.Value = gs('ctl','cutoffAlt',W.cutA.Value);
+    W.cutV.Value = gs('ctl','cutoffV',W.cutV.Value);
+    W.wnA.Value  = gs('ctl','wnAtt',W.wnA.Value);
+    W.ztA.Value  = gs('ctl','ztAtt',W.ztA.Value);
+    W.tauT.Value = gs('ctl','tauThr',W.tauT.Value);
+    W.fG.Value   = gs('ctl','fGim',W.fG.Value);
+    W.ztG.Value  = gs('ctl','ztGim',W.ztG.Value);
+    W.tauF.Value = gs('ctl','tauFlap',W.tauF.Value);
+    W.aRL.Value  = logical(gs('ctl','actRateLim',W.aRL.Value));
+    W.dtC.Value  = gs('ctl','dtMpc',W.dtC.Value);
+    W.dtP.Value  = gs('ctl','dtPlant',W.dtP.Value);
     W.atm.Value  = tern(gs('env','atmIsa',1) > 0, 'ISA標準大気', '一定密度');
     W.hPad.Value = gs('env','hPad_m',W.hPad.Value);
     W.windTune.Value = logical(gs('env','windTune',W.windTune.Value));
