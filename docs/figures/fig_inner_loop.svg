@@ -28,7 +28,7 @@
   <!-- 状態フィードバック (上段) -->
   <path class="wire" d="M1115,230 L1135,230 L1135,72 L110,72 L110,220"/>
   <path class="wire" d="M237,72 L237,240 L290,240 L290,260"/>
-  <text x="500" y="66" class="ts">状態 x (姿勢 q・角速度 ω は内ループへも)</text>
+  <text x="620" y="87" class="ts">状態 x (姿勢 q・角速度 ω は内ループへも)</text>
 
   <!-- MPC -->
   <rect x="40" y="220" width="150" height="130" class="box" rx="8"/>
@@ -80,15 +80,16 @@
 
   <!-- ジンバル角 -> TVC 2次系 -> プラント -->
   <path class="wire" d="M827,310 L827,400"/>
-  <rect x="752" y="400" width="150" height="50" class="act" rx="4"/>
-  <text x="827" y="420" text-anchor="middle" class="ts">TVC 2次系</text>
-  <text x="827" y="436" text-anchor="middle" class="ts">fGim=6Hz, ζ=0.707 (±レート)</text>
-  <path class="wire" d="M902,425 L985,425 L985,320"/>
-  <text x="908" y="418" class="ts">δ₁, δ₂</text>
+  <rect x="742" y="400" width="172" height="50" class="act" rx="4"/>
+  <text x="828" y="420" text-anchor="middle" class="ts">TVC 2次系</text>
+  <text x="828" y="436" text-anchor="middle" class="ts">fGim=6Hz, ζ=0.707 (±レート)</text>
+  <path class="wire" d="M914,425 L985,425 L985,320"/>
+  <text x="922" y="418" class="ts">δ₁, δ₂</text>
 
   <!-- 下段: 舵面 (MPC出力を直結) -->
   <path class="wire" d="M190,335 L215,335 L215,490 L392,490"/>
-  <text x="225" y="483" class="ts">u(4:7) をそのまま（配分はMPC内の効き行列Bflapで実施済み）</text>
+  <text x="224" y="462" class="ts">u(4:7) をそのまま直結</text>
+  <text x="224" y="478" class="ts">(配分はBflapでMPC側処理済)</text>
   <rect x="392" y="465" width="165" height="50" class="act" rx="4"/>
   <text x="474" y="485" text-anchor="middle" class="ts">舵面 1次遅れ</text>
   <text x="474" y="501" text-anchor="middle" class="ts">tauFlap = 0.20 s (±レート)</text>
