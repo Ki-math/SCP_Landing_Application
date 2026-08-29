@@ -261,9 +261,8 @@ tb2 = uitab(tg,'Title','閉ループ');
 gp2 = uigridlayout(tb2,[4 3],'RowHeight',{64,'1x','1x','1x'},'Padding',[4 4 4 4],'RowSpacing',4,'ColumnSpacing',4);
 W.tdCL = uitable(gp2,'Data',{},'RowName',{});
 W.tdCL.Layout.Row = 1;  W.tdCL.Layout.Column = [1 3];
-W.axPlot = gobjects(1,8);
-for i = 1:8, W.axPlot(i) = uiaxes(gp2); end
-W.axPlot(8).Layout.Row = 4;  W.axPlot(8).Layout.Column = [2 3];   % QP時間は横長
+W.axPlot = gobjects(1,9);
+for i = 1:9, W.axPlot(i) = uiaxes(gp2); end
 tb4 = uitab(tg,'Title','風況');
 gw = uigridlayout(tb4,[1 1],'Padding',[4 4 4 4]);
 W.axWind = uiaxes(gw);
