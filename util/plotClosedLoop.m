@@ -55,16 +55,20 @@ xlabel(axs(3),'t [s]'); ylabel(axs(3),'速度 [m/s]');
 legend(axs(3),{'|v|','鉛直 (上+)'},'Location','best');
 title(axs(3),'速度');
 
-%% 4. 姿勢 (左:傾斜 右:角速度)
+%% 4. 姿勢 (左:傾斜のピッチ/ヨー成分 右:角速度)
+[thPc, thYc] = tiltPY(cl.x(7:10,:));
+[thPp, thYp] = tiltPY(sol.q);
 yyaxis(axs(4),'left');
-plot(axs(4), cl.t, tiltOf(cl.x(7:10,:)), 'b-','LineWidth',1.4);
-plot(axs(4), sol.t, tiltOf(sol.q), 'b--','LineWidth',1.0);
-ylabel(axs(4),'傾斜角 [deg]');
+plot(axs(4), cl.t, thPc, 'b-','LineWidth',1.4);
+plot(axs(4), cl.t, thYc, 'r-','LineWidth',1.4);
+plot(axs(4), sol.t, thPp, 'b--', sol.t, thYp, 'r--','LineWidth',1.0);
+ylabel(axs(4),'傾斜角成分 [deg]');
 yyaxis(axs(4),'right');
-plot(axs(4), cl.t, rad2deg(vecnorm(cl.x(11:13,:))), '-','Color',[.85 .4 .1],'LineWidth',1.2);
-plot(axs(4), sol.t, rad2deg(vecnorm(sol.w)), '--','Color',[.85 .4 .1],'LineWidth',1.0);
+plot(axs(4), cl.t, rad2deg(vecnorm(cl.x(11:13,:))), '-','Color',[.85 .4 .1],'LineWidth',1.0);
 ylabel(axs(4),'角速度 [deg/s]');
-xlabel(axs(4),'t [s]'); title(axs(4),'姿勢 (左:傾斜 右:角速度)');
+xlabel(axs(4),'t [s]');
+legend(axs(4),{'ピッチ (DR方向)','ヨー (CR方向)'},'Location','best');
+title(axs(4),'姿勢 (左:傾斜成分 右:角速度)');
 
 %% 5. 推力 (左:大きさ 右:点火基数)
 yyaxis(axs(5),'left');
@@ -76,15 +80,19 @@ stairs(axs(5), tu, sol.engSched(1:N), '-','Color',[.85 .4 .1],'LineWidth',1.2);
 ylabel(axs(5),'点火基数 (計画)'); ylim(axs(5),[-0.2, max(sol.engSched)+0.8]);
 xlabel(axs(5),'t [s]'); title(axs(5),'推力 (左:大きさ 右:基数)');
 
-%% 6. TVC角
-gimC = atan2d(hypot(cl.u(2,:), cl.u(3,:)), max(abs(cl.u(1,:)), 1e-9));
-gimC(vecnorm(cl.u(1:3,:)) < 1e-6) = 0;             % 非点火は無効
-gimP = atan2d(hypot(sol.uhat(2,1:N), sol.uhat(3,1:N)), max(abs(sol.uhat(1,1:N)),1e-9));
-gimP(sol.engSched(1:N)==0) = 0;
-plot(axs(6), cl.t, gimC, 'b-','LineWidth',1.4);
-stairs(axs(6), tu, gimP, 'b--','LineWidth',1.0);
+%% 6. TVC角 (ピッチ/ヨー成分, 符号付き)
+off = vecnorm(cl.u(1:3,:)) < 1e-6;                 % 非点火は無効
+gPc = atan2d(cl.u(3,:), max(abs(cl.u(1,:)), 1e-9));  gPc(off) = 0;
+gYc = atan2d(cl.u(2,:), max(abs(cl.u(1,:)), 1e-9));  gYc(off) = 0;
+gPp = atan2d(sol.uhat(3,1:N), max(abs(sol.uhat(1,1:N)),1e-9));
+gYp = atan2d(sol.uhat(2,1:N), max(abs(sol.uhat(1,1:N)),1e-9));
+gPp(sol.engSched(1:N)==0) = 0;  gYp(sol.engSched(1:N)==0) = 0;
+plot(axs(6), cl.t, gPc, 'b-', cl.t, gYc, 'r-','LineWidth',1.4);
+stairs(axs(6), tu, gPp, 'b--','LineWidth',1.0);
+stairs(axs(6), tu, gYp, 'r--','LineWidth',1.0);
 xlabel(axs(6),'t [s]'); ylabel(axs(6),'TVC角 [deg]');
-title(axs(6),'TVC (推力偏向角. 非点火区間=0)');
+legend(axs(6),{'ピッチ面 (T_3/T_1)','ヨー面 (T_2/T_1)'},'Location','best');
+title(axs(6),'TVC (符号付き偏向角. 非点火区間=0)');
 
 %% 7. 舵角偏差 (4枚)
 if cfg.surfMode == 2
@@ -106,4 +114,15 @@ histogram(axs(8), cl.qpT*1e3, 30);
 xlabel(axs(8),'追従QP時間 [ms]'); ylabel(axs(8),'回数');
 title(axs(8), sprintf('MPC %d回 平均%.1fms 最大%.1fms 収束%.0f%%', numel(cl.qpT), ...
       mean(cl.qpT)*1e3, max(cl.qpT)*1e3, 100*mean(strcmp(cl.st,'converged'))));
+end
+
+function [thP, thY] = tiltPY(Q)
+%TILTPY  傾斜のピッチ/ヨー成分 [deg] (plotPlanTrend と同一定義)
+n = size(Q,2);  thP = zeros(1,n);  thY = zeros(1,n);
+for k = 1:n
+    q0=Q(1,k); q1=Q(2,k); q2=Q(3,k); q3=Q(4,k);
+    bx = [1-2*(q2*q2+q3*q3); 2*(q1*q2+q0*q3); 2*(q1*q3-q0*q2)];
+    thY(k) = atan2d(bx(2), bx(1));
+    thP(k) = atan2d(bx(3), bx(1));
+end
 end

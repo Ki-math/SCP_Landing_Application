@@ -45,15 +45,19 @@ addPh(axs(2), tPh);
 xlabel(axs(2),'t [s]'); ylabel(axs(2),'速度 [m/s]');
 legend(axs(2),{'|v|','鉛直 (上+)'},'Location','best'); title(axs(2),'速度');
 
-%% 3. 姿勢 (左:傾斜角 右:角速度)
-tilt = arrayfun(@(k) acosd(max(-1,min(1,1-2*(sol.q(3,k)^2+sol.q(4,k)^2)))), 1:N+1);
+%% 3. 姿勢 (左:傾斜のピッチ/ヨー成分 右:角速度)
+[thP, thY] = tiltPY(sol.q);
 yyaxis(axs(3),'left');
-plot(axs(3), t, tilt, 'b-','LineWidth',1.4);  ylabel(axs(3),'傾斜角 [deg]');
+plot(axs(3), t, thP, 'b-','LineWidth',1.4);
+plot(axs(3), t, thY, 'r-','LineWidth',1.4);
+ylabel(axs(3),'傾斜角成分 [deg]');
 yyaxis(axs(3),'right');
-plot(axs(3), t, rad2deg(vecnorm(sol.w)), '-','Color',[.85 .4 .1],'LineWidth',1.2);
+plot(axs(3), t, rad2deg(vecnorm(sol.w)), '-','Color',[.85 .4 .1],'LineWidth',1.0);
 ylabel(axs(3),'角速度 [deg/s]');
 addPh(axs(3), tPh);
-xlabel(axs(3),'t [s]'); title(axs(3),'姿勢 (左:傾斜 右:角速度)');
+xlabel(axs(3),'t [s]');
+legend(axs(3),{'ピッチ (DR方向の倒れ)','ヨー (CR方向の倒れ)'},'Location','best');
+title(axs(3),'姿勢 (左:傾斜成分 右:角速度)');
 
 %% 4. 推力 (左:大きさ 右:点火基数)
 yyaxis(axs(4),'left');
@@ -64,13 +68,14 @@ ylabel(axs(4),'点火基数'); ylim(axs(4),[-0.2, max(sol.engSched)+0.8]);
 addPh(axs(4), tPh);
 xlabel(axs(4),'t [s]'); title(axs(4),'推力 (左:大きさ 右:基数)');
 
-%% 5. TVC角 (単独)
-gim = atan2d(hypot(sol.uhat(2,1:N), sol.uhat(3,1:N)), max(abs(sol.uhat(1,1:N)),1e-9));
-gim(sol.engSched(1:N)==0) = 0;                   % 非点火区間は無効
-stairs(axs(5), tu, gim, 'b-','LineWidth',1.4);
+%% 5. TVC角 (ピッチ/ヨー成分, 符号付き)
+[gP, gY] = tvcPY(sol.uhat(:,1:N), sol.engSched(1:N));
+stairs(axs(5), tu, gP, 'b-','LineWidth',1.4);
+stairs(axs(5), tu, gY, 'r-','LineWidth',1.4);
 addPh(axs(5), tPh);
 xlabel(axs(5),'t [s]'); ylabel(axs(5),'TVC角 [deg]');
-title(axs(5),'TVC (推力偏向角. 非点火区間=0)');
+legend(axs(5),{'ピッチ面 (T_3/T_1)','ヨー面 (T_2/T_1)'},'Location','best');
+title(axs(5),'TVC (符号付き偏向角. 非点火区間=0)');
 
 %% 6. 舵角偏差 (4枚, 凡例つき)
 if cfg.surfMode == 2
@@ -90,4 +95,23 @@ end
 
 function addPh(ax, tPh)
 for tp = tPh(2:end), xline(ax, tp, 'k:'); end
+end
+
+function [thP, thY] = tiltPY(Q)
+%TILTPY  傾斜のピッチ/ヨー成分 [deg]. 機体x軸の慣性系方向から分解:
+%  ピッチ = ダウンレンジ(z)方向への倒れ, ヨー = クロスレンジ(y)方向への倒れ
+n = size(Q,2);  thP = zeros(1,n);  thY = zeros(1,n);
+for k = 1:n
+    q0=Q(1,k); q1=Q(2,k); q2=Q(3,k); q3=Q(4,k);
+    bx = [1-2*(q2*q2+q3*q3); 2*(q1*q2+q0*q3); 2*(q1*q3-q0*q2)];  % 機体x軸 (慣性系)
+    thY(k) = atan2d(bx(2), bx(1));
+    thP(k) = atan2d(bx(3), bx(1));
+end
+end
+
+function [gP, gY] = tvcPY(U, eng)
+%TVCPY  TVCの符号付き偏向角 [deg]. ピッチ面 = atan2(T3,T1), ヨー面 = atan2(T2,T1)
+gP = atan2d(U(3,:), max(abs(U(1,:)), 1e-9));
+gY = atan2d(U(2,:), max(abs(U(1,:)), 1e-9));
+gP(eng==0) = 0;  gY(eng==0) = 0;
 end
