@@ -118,8 +118,11 @@ rE = sol.r(:,end);  rd = quat2dcm(sol.q(:,end).').'*sol.v(:,end);
 fprintf('終端: 高度%.1fm(目標%.0f) 水平%.1fm |v|%.2f 傾斜%.1fdeg 燃料%.2ft tf=%.1fs nu=%.1e\n', ...
     rE(1), cfg.hmin*cfg.sc.L, hypot(rE(2),rE(3)), norm(rd), ...
     acosd(max(-1,1-2*(sol.q(3,end)^2+sol.q(4,end)^2))), sol.propellant/1e3, sol.tf, sol.virtCtrl);
-x0 = prob.x0;  optSave = opt; %#ok<NASGU>
-opt = optSave;
+x0 = prob.x0;
+%% 保存する opt の QP 設定はベース値に戻す. 磨きパスの厳格QP (1e-6/40000) は
+%% オフライン計画専用で, 保存 opt はオンライン再計画 (replan6) や組み込み例の
+%% 生成 (exportPlanExample) に使われるため, 漏れるとリアルタイム性を壊す
+opt.qp = prob.opt.qp;
 save(resf, 'sol','cfg','x0','opt');
 fprintf('保存: %s\n', resf);
 end
