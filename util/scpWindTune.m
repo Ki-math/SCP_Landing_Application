@@ -3,7 +3,8 @@ function prob = scpWindTune(prob)
 %
 %   PROB = SCPWINDTUNE(PROB)  windProf を設定した問題に適用する.
 %
-%   やること (falcon9 クロス風10 m/s級で 水平誤差 45m -> 4.5m 実測):
+%   やること (falcon9 クロス風10 m/s級で 計画残差 22.8m -> 13.5m 実測.
+%    細長体空力補正後の値. USER_GUIDE §6「強風時の注意」参照):
 %     - 姿勢レート緩和      wMaxFlip>=15deg/s, wMaxTight>=8deg/s
 %     - 傾斜スケジュール2倍  (精密着陸フェーズは据え置き)
 %     - コースト中の風上リーン許可 (bellyHold=8. グリッドフィン機のみ:

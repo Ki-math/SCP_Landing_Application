@@ -82,8 +82,12 @@ hPad   = dv('hPad', 0);
 if atmIsa > 0, rhoDef = scpk.isaRho(hPad); else, rhoDef = 1.12; end
 
 %% --- 空力 (細長い円柱, テールファースト) ---
+%% CdSide は「側面積基準の実効横力係数」. テールファースト降下は横滑り角が
+%% 小さい (数deg) ため, 平板の90deg横風値 (1.2) ではなく細長体の法線力勾配
+%% CNalpha ~ 5 /rad 相当の 0.35 を既定とする (1.2 は横力を3-5倍過大評価し,
+%% 10 m/s級の常用風で非現実的なドリフト・姿勢活動を生む. 実測).
 rho = dv('rho', rhoDef);  aeroScale = dv('aeroScale', 1.0);
-CdAx = dv('CdAx', 0.8);  CdSide = dv('CdSide', 1.2);
+CdAx = dv('CdAx', 0.8);  CdSide = dv('CdSide', 0.35);
 Sx = pi*veh.R^2;  Sy = veh.Lb*2*veh.R;  Sz = Sy;   %#ok<NASGU>
 cfg.cx = aeroScale*0.5*rho*CdAx*Sx*sc.V^2/cfg.Fs;
 cfg.cy = aeroScale*0.5*rho*CdSide*Sy*sc.V^2/cfg.Fs;
