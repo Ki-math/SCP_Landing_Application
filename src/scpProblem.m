@@ -151,6 +151,8 @@ otherwise
     error('未知の機体: %s (starship / falcon9)', vehicle);
 end
 prob.vehicle = lower(vehicle);
+prob.x0Ref = prob.x0;                            % テンプレートの初期条件 (scpPlanが
+                                                 % フェーズ時間の自動伸縮に使用)
 prob.windProf = [];                              % 風況プロファイル (閉ループ/MCSへ渡る):
                                                  % struct('h',[m],'wy',[m/s],'wz',[m/s])
                                                  % 例: prob.windProf = loadWindProfile(...

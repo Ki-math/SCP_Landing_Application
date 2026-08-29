@@ -410,7 +410,14 @@ function doPlan()
         msg = sprintf('計画完了: tf=%.1fs 終端高度%.1fm 水平%.1fm 燃料%.2ft nu=%.1e', ...
             S.sol.tf, rE(1), hypot(rE(2),rE(3)), S.sol.propellant/1e3, S.sol.virtCtrl);
         say(msg);
-        uialert(fig, msg, '計画完了', 'Icon','success');
+        if S.sol.virtCtrl > 1e-3
+            uialert(fig, sprintf(['%s\n\n警告: 仮想制御 nu が残っており計画は完全' ...
+                '収束していません。結果は物理的に無効な可能性があります' ...
+                '(フェーズ時間の箱・重み・初期条件を見直してください)'], msg), ...
+                '計画完了 (未収束)', 'Icon','warning');
+        else
+            uialert(fig, msg, '計画完了', 'Icon','success');
+        end
     catch ME
         oops(ME, '計画エラー');
     end

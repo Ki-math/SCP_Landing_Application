@@ -54,6 +54,33 @@ if nargin >= 2 && quick && exist(resf,'file')
     return
 end
 
+%% 初期条件の変更にフェーズ時間チューニングを追随させる (相似伸縮).
+%% sig0 / sigMin / sigMax / 継続法のσ注入はテンプレートの初期条件用に調整して
+%% あるため, 高度や速度を変えると実現可能な時間割りが箱の外に出て
+%% 収束しない (nu が残る) ことがある. 特徴時間 h0/|v0| の比で伸縮して防ぐ.
+if isfield(prob,'x0Ref') && ~isempty(prob.x0Ref)
+    tRef = prob.x0Ref(1)/max(norm(prob.x0Ref(4:6)), 1);
+    tNow = prob.x0(1)/max(norm(prob.x0(4:6)), 1);
+    tau = min(max(tNow/tRef, 0.4), 2.5);
+    if abs(tau - 1) > 0.02
+        prob.sig0 = prob.sig0*tau;
+        prob.opt.sigMin = prob.opt.sigMin*tau;
+        prob.opt.sigMax = prob.opt.sigMax*tau;
+        for p = 1:numel(prob.passes)
+            if isfield(prob.passes(p).set,'sigMin')
+                prob.passes(p).set.sigMin = prob.passes(p).set.sigMin*tau;
+            end
+            if isfield(prob.passes(p).set,'sigMax')
+                prob.passes(p).set.sigMax = prob.passes(p).set.sigMax*tau;
+            end
+            if ~isempty(prob.passes(p).sigma)
+                prob.passes(p).sigma = prob.passes(p).sigma*tau;
+            end
+        end
+        fprintf('初期条件に合わせフェーズ時間チューニングを %.2f 倍に伸縮\n', tau);
+    end
+end
+
 opt = prob.opt;
 opt.phase = prob.phase;  opt.engSched = prob.eng;  opt.tiltMaxNode = prob.tiltN;
 nP = numel(prob.passes);
@@ -78,6 +105,13 @@ if ~isfinite(sol.tf) || sol.tf <= 0.5 || any(~isfinite(sol.r(:)))
     error(['計画が数値破綻しました (tf=%.2f)。強風の場合は横制約や姿勢レートを緩めて' ...
            'ください (例: prob.opt.crMax拡大, prob.opt.wMaxFlip/wMaxTight緩和, ' ...
            'prob.tiltN緩和。USER_GUIDE §6「大気モデルと風」参照)'], sol.tf);
+end
+
+if sol.virtCtrl > 1e-3
+    warning('scpk:planNotConverged', ...
+        ['計画が完全収束していません (仮想制御 nu=%.1e > 1e-3)。結果は物理的に' ...
+         '無効な可能性があります。sig0/sigMin/sigMax (フェーズ時間の箱) や重みの' ...
+         '調整、初期条件の見直しを検討してください'], sol.virtCtrl);
 end
 
 rE = sol.r(:,end);  rd = quat2dcm(sol.q(:,end).').'*sol.v(:,end);
