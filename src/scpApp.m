@@ -397,7 +397,7 @@ end
 function doPlan()
     d = busy('計画', '軌道計画を求解中... (コールドスタート+調整連鎖: 約1分)');
     c = onCleanup(@() delete(d));
-    say('計画を求解中...');
+    say(sprintf('計画を求解中... [%s]', condStr()));
     try
         S.prob = buildProb();
         pf = @(frac,msg) setProg(d, frac, msg);
@@ -430,7 +430,7 @@ function doCL()
     S.prob.windProf = getWindProf();   % 風は計画に入らないため実行時点の環境タブを反映
     d = busy('閉ループ', '閉ループシミュレーション実行中...');
     c = onCleanup(@() delete(d));
-    say('閉ループ実行中...');
+    say(sprintf('閉ループ実行中... [%s]', condStr()));
     try
         prm = struct('thrEff',W.thr.Value, 'windY',W.wnd.Value, ...
                      'navJump',W.nav.Value, 'errTrig',W.eTr.Value, ...
@@ -592,6 +592,18 @@ function fillTd(tbl, st)
         if chk{ii,2}, addStyle(tbl, gOK, 'cell', [1 chk{ii,1}]);
         else,         addStyle(tbl, gNG, 'cell', [1 chk{ii,1}]); end
     end
+end
+
+function s = condStr()
+    %% 実行条件のエコー (隠れ状態による「再現できない」事故の防止):
+    %% 風テーブルは機体切替でも残るため, 何が適用されるかを毎回明示する
+    wpG = getWindProf();
+    if isempty(wpG), ws = '風なし';
+    else, ws = sprintf('風あり max%.1fm/s', max(abs([wpG.wy; wpG.wz])));
+    end
+    s = sprintf('%s | %s | 強風チューニング%s | %s | %s', W.veh.Value, ws, ...
+        tern(W.windTune.Value,'ON','OFF'), tern(strcmp(W.atm.Value,'ISA標準大気'),'ISA','一定密度'), ...
+        tern(startsWith(W.ctl.Value,'方式2'),'方式2','方式1'));
 end
 
 function wp = getWindProf()
