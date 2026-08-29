@@ -56,6 +56,13 @@ if pp.wTilt > 0                     % 傾斜正則化: 直立想定ノードの 
         end
     end
 end
+if pp.wFlap > 0                     % 舵面正則化 (buildPlan6 と同一)
+    for k = 1:N
+        for i = 4:7
+            Pd(ou+(k-1)*nu7+i) = Pd(ou+(k-1)*nu7+i) + pp.wFlap;
+        end
+    end
+end
 q = zeros(nz,1);
 q(ox+nx*N+14) = q(ox+nx*N+14) - pp.wFuel;         % 終端質量 (x(:,N+1) の14成分目)
 for i = 1:nvc*N, q(ovp+i) = pp.lamVC;  q(ovm+i) = pp.lamVC; end

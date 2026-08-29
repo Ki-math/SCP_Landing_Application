@@ -28,6 +28,10 @@ if isfield(prob.opt,'tiltMax')
 end
 if prob.cfg.surfMode == 2
     prob.opt.bellyHold = 8;      % テールファースト機: コーストの姿勢箱を緩める
+    if isfield(prob.opt,'wFlap')
+        prob.opt.wFlap = 0;      % 風対抗のリーン保持には大きな定常フィントリム
+    end                          % (~15deg) が必要なため舵面正則化は解除する
+                                 % (0.1でも水平20->41mに悪化, 実測)
 end                              % (ベリーフロップ機は姿勢保持が必須なので触らない)
 prob.track.wQuat = max(prob.track.wQuat, 3.5);
 prob.track.wRate = max(prob.track.wRate, 3.0);

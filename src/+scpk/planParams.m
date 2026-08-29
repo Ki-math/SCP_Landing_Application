@@ -31,6 +31,7 @@ if isempty(db), pp.useDrBox = 0;  pp.drBox = [0 0]; else, pp.useDrBox = 1;  pp.d
 pp.crMax = gf('crMax', 0);
 pp.thrMaxTight = gf('thrMaxTight', 0);
 pp.wTilt = gf('wTilt', 0);
+pp.wFlap = gf('wFlap', 0);
 pp.rateLim = double(gf('rateLim', true));
 
 qpp = struct('maxIter',opt.qp.maxIter, 'fixedIter',double(opt.qp.fixedIter), ...

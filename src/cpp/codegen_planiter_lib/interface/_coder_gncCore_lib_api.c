@@ -2,7 +2,7 @@
  * File: _coder_gncCore_lib_api.c
  *
  * MATLAB Coder version            : 24.2
- * C/C++ source code generated on  : 2026/08/29 00:13:12
+ * C/C++ source code generated on  : 2026/08/29 11:14:48
  */
 
 /* Include Files */
@@ -2128,7 +2128,7 @@ static void y_emlrt_marshallIn(const emlrtStack *sp, const mxArray *u,
                                const emlrtMsgIdentifier *parentId, struct3_T *y)
 {
   static const int32_T dims = 0;
-  static const char_T *fieldNames[38] = {
+  static const char_T *fieldNames[39] = {
       "tolPos",      "tolVel",      "tolQuat",  "tolRate",    "tolMass",
       "tolThr",      "tolFlap",     "tolSig",   "wFuel",      "lamVC",
       "lamTerm",     "lamGlide",    "reg",      "trX",        "trU",
@@ -2136,11 +2136,11 @@ static void y_emlrt_marshallIn(const emlrtStack *sp, const mxArray *u,
       "wMaxFlip",    "wMaxTight",   "tiltMax",  "glideSlope", "nCone",
       "coneHalf",    "coneShrink",  "lcTol",    "bellyHold",  "qBelly",
       "softGlide",   "monoDescent", "useDrBox", "drBox",      "crMax",
-      "thrMaxTight", "wTilt",       "rateLim"};
+      "thrMaxTight", "wTilt",       "wFlap",    "rateLim"};
   emlrtMsgIdentifier thisId;
   thisId.fParent = parentId;
   thisId.bParentIsCell = false;
-  emlrtCheckStructR2012b((emlrtConstCTX)sp, parentId, u, 38,
+  emlrtCheckStructR2012b((emlrtConstCTX)sp, parentId, u, 39,
                          (const char_T **)&fieldNames[0], 0U,
                          (const void *)&dims);
   thisId.fIdentifier = "tolPos";
@@ -2318,10 +2318,14 @@ static void y_emlrt_marshallIn(const emlrtStack *sp, const mxArray *u,
   y->wTilt = r_emlrt_marshallIn(
       sp, emlrtAlias(emlrtGetFieldR2017b((emlrtConstCTX)sp, u, 0, 36, "wTilt")),
       &thisId);
+  thisId.fIdentifier = "wFlap";
+  y->wFlap = r_emlrt_marshallIn(
+      sp, emlrtAlias(emlrtGetFieldR2017b((emlrtConstCTX)sp, u, 0, 37, "wFlap")),
+      &thisId);
   thisId.fIdentifier = "rateLim";
   y->rateLim = r_emlrt_marshallIn(
       sp,
-      emlrtAlias(emlrtGetFieldR2017b((emlrtConstCTX)sp, u, 0, 37, "rateLim")),
+      emlrtAlias(emlrtGetFieldR2017b((emlrtConstCTX)sp, u, 0, 38, "rateLim")),
       &thisId);
   emlrtDestroyArray(&u);
 }

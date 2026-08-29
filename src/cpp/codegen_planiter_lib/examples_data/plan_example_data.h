@@ -2858,6 +2858,7 @@ static void fill_pp(struct3_T *s)
   s->crMax = 40;
   s->thrMaxTight = 0.90000000000000002;
   s->wTilt = 0.02;
+  s->wFlap = 0;
   s->rateLim = 1;
 }
 

@@ -92,6 +92,13 @@ if isfield(opt,'wTilt') && ~isempty(opt.wTilt) && opt.wTilt > 0 ...
         P = P + sparse(iq, iq, opt.wTilt, nz, nz);
     end
 end
+%% 舵面使用の正則化: コストが舵面に無関心だと最適化はレート制限いっぱいの
+%% バンバン動作で舵面を振り回し, 姿勢が5-15deg振動する不自然な計画になる
+%% (グリッドフィン機で実測). 弱い2次ペナルティで滑らかな舵面計画を既定にする.
+if isfield(opt,'wFlap') && ~isempty(opt.wFlap) && opt.wFlap > 0
+    ifp = reshape(ix.u(4:7,1:N), 1, []);
+    P = P + sparse(ifp, ifp, opt.wFlap, nz, nz);
+end
 %% トラストリージョンは境界で課す (ペナルティにしない). ペナルティだと線形化が
 %% 悪い場面で解が遠くへ飛び, rho が負になって棄却の連鎖に陥る. 境界なら
 %% 「どれだけ動いてよいか」が陽に決まり構造的に防げる. 箱制約なので PIPG では

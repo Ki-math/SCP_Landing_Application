@@ -2,7 +2,7 @@
  * File: gncCore_lib_types.h
  *
  * MATLAB Coder version            : 24.2
- * C/C++ source code generated on  : 2026/08/29 00:13:12
+ * C/C++ source code generated on  : 2026/08/29 11:14:48
  */
 
 #ifndef GNCCORE_LIB_TYPES_H
@@ -167,6 +167,7 @@ typedef struct {
   double crMax;
   double thrMaxTight;
   double wTilt;
+  double wFlap;
   double rateLim;
 } struct3_T;
 #endif /* typedef_struct3_T */

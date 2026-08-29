@@ -2,7 +2,7 @@
  * File: scpk_planIterEmb.c
  *
  * MATLAB Coder version            : 24.2
- * C/C++ source code generated on  : 2026/08/29 00:13:12
+ * C/C++ source code generated on  : 2026/08/29 11:14:48
  */
 
 /* Include Files */
@@ -1040,6 +1040,16 @@ void scpk_planIterEmb(
         r = k * 14 + 9;
         Pd_data[r] += pp->wTilt;
       }
+    }
+  }
+  if (pp->wFlap > 0.0) {
+    /*  舵面正則化 (buildPlan6 と同一) */
+    for (k = 0; k < N_tmp; k++) {
+      r = ou_tmp + k * 7;
+      Pd_data[r + 3] += pp->wFlap;
+      Pd_data[r + 4] += pp->wFlap;
+      Pd_data[r + 5] += pp->wFlap;
+      Pd_data[r + 6] += pp->wFlap;
     }
   }
   emxInit_real_T(&q, 1);

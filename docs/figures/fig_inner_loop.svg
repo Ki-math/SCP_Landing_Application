@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 500" font-family="'Yu Gothic','Meiryo',sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+  <style>
+    .box  { fill:#eaf2fb; stroke:#2b6cb0; stroke-width:1.6; rx:6; }
+    .act  { fill:#fdf1e2; stroke:#c05621; stroke-width:1.6; }
+    .pl   { fill:#e8f5e9; stroke:#2f855a; stroke-width:1.6; }
+    .t    { font-size:13px; fill:#1a202c; }
+    .ts   { font-size:11px; fill:#4a5568; }
+    .tt   { font-size:15px; font-weight:bold; fill:#1a202c; }
+    .lane { font-size:12px; font-weight:bold; fill:#718096; }
+    .wire { stroke:#333; stroke-width:1.5; fill:none; marker-end:url(#ar); }
+    .wireN{ stroke:#333; stroke-width:1.5; fill:none; }
+  </style>
+
+  <text x="470" y="24" text-anchor="middle" class="tt">制御方式2 (姿勢内ループ + アクチュエータ) の信号の流れ</text>
+
+  <!-- 周期レーン背景 -->
+  <rect x="20" y="40" width="180" height="440" fill="#f0f4f8"/>
+  <rect x="210" y="40" width="500" height="440" fill="#fbfbf3"/>
+  <rect x="720" y="40" width="200" height="440" fill="#f2faf2"/>
+  <text x="110" y="58" text-anchor="middle" class="lane">追従MPC (100 ms)</text>
+  <text x="460" y="58" text-anchor="middle" class="lane">姿勢内ループ + アクチュエータ (10 ms)</text>
+  <text x="820" y="58" text-anchor="middle" class="lane">プラント (10 ms)</text>
+
+  <!-- MPC -->
+  <rect x="35" y="180" width="150" height="120" class="box" rx="8"/>
+  <text x="110" y="205" text-anchor="middle" class="t">追従MPC</text>
+  <text x="110" y="222" text-anchor="middle" class="ts">(LTV追従QP, PIPG)</text>
+  <text x="110" y="246" text-anchor="middle" class="ts">出力:</text>
+  <text x="110" y="262" text-anchor="middle" class="ts">推力ベクトル u(1:3)</text>
+  <text x="110" y="277" text-anchor="middle" class="ts">姿勢コマンド qCmd</text>
+  <text x="110" y="292" text-anchor="middle" class="ts">舵面指令 u(4:7)</text>
+
+  <!-- 上段: スロットル経路 -->
+  <path class="wire" d="M185,205 L250,205 L250,110 L290,110"/>
+  <text x="215" y="198" class="ts">|T| 大きさ</text>
+  <rect x="290" y="88" width="120" height="44" class="box"/>
+  <text x="350" y="106" text-anchor="middle" class="ts">鉛直速度FB</text>
+  <text x="350" y="122" text-anchor="middle" class="ts">velFB / velFBi</text>
+  <path class="wire" d="M410,110 L455,110"/>
+  <text x="432" y="103" class="ts">Tc</text>
+  <rect x="455" y="88" width="130" height="44" class="act"/>
+  <text x="520" y="106" text-anchor="middle" class="ts">スロットル 1次遅れ</text>
+  <text x="520" y="122" text-anchor="middle" class="ts">tauThr = 0.10 s</text>
+  <path class="wire" d="M585,110 L760,110 L760,200"/>
+  <text x="640" y="103" class="ts">推力の大きさ Tm</text>
+
+  <!-- 中段: 姿勢PD -> TVC -->
+  <path class="wire" d="M185,240 L290,240"/>
+  <text x="200" y="233" class="ts">qCmd</text>
+  <rect x="290" y="215" width="110" height="50" class="box"/>
+  <text x="345" y="235" text-anchor="middle" class="ts">姿勢誤差</text>
+  <text x="345" y="251" text-anchor="middle" class="ts">qe = q⁻¹⊗qCmd</text>
+  <path class="wire" d="M400,240 L430,240"/>
+  <rect x="430" y="215" width="120" height="50" class="box"/>
+  <text x="490" y="233" text-anchor="middle" class="ts">PD則 (Kp=wn², Kd=2ζwn)</text>
+  <text x="490" y="249" text-anchor="middle" class="ts">aDes = wn²e − 2ζw·ω</text>
+  <path class="wire" d="M550,240 L578,240"/>
+  <rect x="578" y="215" width="96" height="50" class="box"/>
+  <text x="626" y="233" text-anchor="middle" class="ts">慣性/腕長換算</text>
+  <text x="626" y="249" text-anchor="middle" class="ts">T₂c,T₃c = a·J/L</text>
+
+  <!-- FF加算 -->
+  <path class="wire" d="M185,270 L250,270 L250,320 L610,320 L610,296"/>
+  <text x="270" y="313" class="ts">横推力FF u(2:3)·Fs （PD単独では大機動を再構成できず必須）</text>
+  <circle cx="626" cy="282" r="12" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="626" y="287" text-anchor="middle" class="t">+</text>
+  <path class="wireN" d="M626,265 L626,270"/>
+  <path class="wire" d="M638,282 L668,282 L668,355 L455,355"/>
+  <rect x="330" y="332" width="125" height="46" class="box"/>
+  <text x="392" y="350" text-anchor="middle" class="ts">ジンバル角 (小角)</text>
+  <text x="392" y="366" text-anchor="middle" class="ts">δ = ΣT / |Tc|, ±tvcMax</text>
+  <path class="wire" d="M330,355 L300,355 L300,410 L330,410"/>
+  <rect x="330" y="388" width="150" height="44" class="act"/>
+  <text x="405" y="406" text-anchor="middle" class="ts">TVC 2次系</text>
+  <text x="405" y="422" text-anchor="middle" class="ts">fGim=6Hz, ζ=0.707 (±レート)</text>
+  <path class="wire" d="M480,410 L760,410 L760,300"/>
+  <text x="560" y="403" class="ts">ジンバル角 δ₁,δ₂</text>
+
+  <!-- 下段: 舵面 -->
+  <path class="wire" d="M185,290 L230,290 L230,460 L330,460"/>
+  <text x="238" y="453" class="ts">u(4:7) そのまま (配分はMPC内のBflapで済み)</text>
+  <rect x="330" y="440" width="150" height="40" class="act"/>
+  <text x="405" y="457" text-anchor="middle" class="ts">舵面 1次遅れ</text>
+  <text x="405" y="472" text-anchor="middle" class="ts">tauFlap = 0.20 s (±レート)</text>
+  <path class="wire" d="M480,460 L790,460 L790,310"/>
+  <text x="600" y="453" class="ts">フィン/フラップ舵角</text>
+
+  <!-- プラント -->
+  <rect x="735" y="200" width="170" height="110" class="pl" rx="8"/>
+  <text x="820" y="228" text-anchor="middle" class="t">プラント</text>
+  <text x="820" y="246" text-anchor="middle" class="ts">6自由度 (RK4, 10ms)</text>
+  <text x="820" y="262" text-anchor="middle" class="ts">推力 = Tm·[1; δ₁; δ₂]</text>
+  <text x="820" y="278" text-anchor="middle" class="ts">+ 外乱 (thrEff, 風)</text>
+
+  <!-- フィードバック -->
+  <path class="wire" d="M905,255 L925,255 L925,155 L110,155 L110,180"/>
+  <text x="500" y="148" class="ts">状態 x (姿勢 q, 角速度 ω は内ループへも)</text>
+  <path class="wire" d="M345,155 L345,215"/>
+</svg>

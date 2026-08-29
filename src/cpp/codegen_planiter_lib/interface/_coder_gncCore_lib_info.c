@@ -2,7 +2,7 @@
  * File: _coder_gncCore_lib_info.c
  *
  * MATLAB Coder version            : 24.2
- * C/C++ source code generated on  : 2026/08/29 00:13:12
+ * C/C++ source code generated on  : 2026/08/29 11:14:48
  */
 
 /* Include Files */
@@ -82,7 +82,7 @@ mxArray *emlrtMexFcnProperties(void)
       emlrtMxCreateString(
           "C:\\Work\\scp_landing_project\\src\\+scpk\\planIterEmb.m"));
   emlrtSetField(xEntryPoints, 0, "TimeStamp",
-                emlrtMxCreateDoubleScalar(740222.59476851847));
+                emlrtMxCreateDoubleScalar(740223.46694444446));
   emlrtSetField(xEntryPoints, 0, "Constructor",
                 emlrtMxCreateLogicalScalar(false));
   emlrtSetField(xEntryPoints, 0, "Visible", emlrtMxCreateLogicalScalar(true));

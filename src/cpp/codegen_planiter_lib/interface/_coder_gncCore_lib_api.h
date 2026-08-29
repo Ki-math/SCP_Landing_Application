@@ -2,7 +2,7 @@
  * File: _coder_gncCore_lib_api.h
  *
  * MATLAB Coder version            : 24.2
- * C/C++ source code generated on  : 2026/08/29 00:13:12
+ * C/C++ source code generated on  : 2026/08/29 11:14:48
  */
 
 #ifndef _CODER_GNCCORE_LIB_API_H
@@ -170,6 +170,7 @@ typedef struct {
   real_T crMax;
   real_T thrMaxTight;
   real_T wTilt;
+  real_T wFlap;
   real_T rateLim;
 } struct3_T;
 #endif /* typedef_struct3_T */
