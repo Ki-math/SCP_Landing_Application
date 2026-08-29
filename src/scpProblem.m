@@ -117,12 +117,18 @@ case 'falcon9'
     o.trShrinkRate=0.93; o.trXmin=3; o.trUmin=2; o.trSigMin=0.3;
     o.maxIter=25; o.qp.maxIter=6000; o.tolStep=1e-3; o.wFuel=15; o.useCpp=true;
     prob.opt = o;
+    qpTight = o.qp;  qpTight.maxIter = 40000;
+    qpTight.tolPri = 1e-6;  qpTight.tolDua = 1e-6;
     prob.passes = struct( ...
       'set',{struct('lamTerm',1e7,'maxIter',14,'tolStep',8e-4), ...
              struct('lamTerm',5e7,'maxIter',16,'tolStep',6e-4, ...
                     'sigMin',[6.5 1.5 2 1.2],'sigMax',[9 5.5 9 5]), ...
-             struct('lamTerm',1e8,'maxIter',14,'tolStep',5e-4)}, ...
-      'sigma',{[],[7.5 4 4 1.8],[]});   % pass2: 遅点火の盆地へ誘導
+             struct('lamTerm',1e8,'maxIter',14,'tolStep',5e-4), ...
+             struct('lamTerm',1e8,'maxIter',6,'tolStep',5e-4,'qp',qpTight)}, ...
+      'sigma',{[],[7.5 4 4 1.8],[],[]});
+    %% pass2: 遅点火の盆地へ誘導. pass4 (磨き): QP許容誤差を1e-6に厳格化.
+    %% 通常パスの相対許容誤差1e-3は終端重み1e8の問題では絶対誤差として大きな
+    %% 最適性の取り残しを許す (風10m/s時の終端残差 13.5m -> 0.1m, 実測+35秒)
     prob.planFile = 'landing_falcon9.mat';
     prob.refSync = 'alt';           % 点火ディスパッチ: 参照を高度で引く
                                     % (ホバースラムのタイミング分散を吸収)
@@ -165,6 +171,8 @@ end
 if strcmp(prob.vehicle,'falcon9')
     prob.track.qp.maxIter = 4000;                % 短時間・高加速の追従QPは反復多め
                                                  % (2500だと収束率53% -> 4000で99%)
+    prob.track.fastIter = 600;                   % 固定反復数 (既定300では追従精度が
+                                                 % 不足し風時に+9mの残差. 600で~27ms)
     prob.track.wQuat = 2.5;                      % 姿勢追従を強め (傾斜ふらつき抑制)
     prob.track.wRate = 2.0;                      % 角速度減衰
     prob.track.rCtrl = 0.8;                      % 制御を滑らかに

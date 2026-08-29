@@ -185,13 +185,18 @@ for s = 0:nStep-1
     if ~inner
         u = uMPC;  u(1) = T1a;
         if lam < 1
-            %% コミット域: 横推力を姿勢レートダンピング専用へ (位置追いをやめ
-            %% 残留レートを消して直立で接地する)
-            kdw = 2.0;                              % [1/s]
+            %% コミット域: 横推力を「直立への姿勢戻し + レートダンピング」専用へ
+            %% (位置追いをやめ, 風でリーンした姿勢を起こして直立で接地する.
+            %%  レートダンピングのみでは風下リーン 5-7deg のまま接地する, 実測)
+            kdw = 2.0;  kA = 1.5;                   % [1/s] / [1/s^2]
             Lrt = abs(cfg.rT(1))*sc.L;
             wB = x(11:13)/sc.T;
-            T2d =  kdw*cfg.Jphys(3,3)*wB(3)/Lrt/cfg.Fs;
-            T3d = -kdw*cfg.Jphys(2,2)*wB(2)/Lrt/cfg.Fs;
+            qn = x(7:10);  sgn = sign(qn(1));  if sgn == 0, sgn = 1; end
+            e2 = -2*sgn*qn(3);  e3 = -2*sgn*qn(4);  % 直立への小角誤差 [rad]
+            aD2 = kA*e2 - kdw*wB(2);
+            aD3 = kA*e3 - kdw*wB(3);
+            T2d = -aD3*cfg.Jphys(3,3)/Lrt/cfg.Fs;
+            T3d =  aD2*cfg.Jphys(2,2)/Lrt/cfg.Fs;
             u(2) = lam*u(2) + (1-lam)*T2d;
             u(3) = lam*u(3) + (1-lam)*T3d;
         end

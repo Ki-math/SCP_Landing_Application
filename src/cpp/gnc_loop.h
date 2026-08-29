@@ -153,11 +153,14 @@ static gnc_result_t gnc_run(const struct0_T *cfg, const struct5_T *tp,
             for (i = 0; i < 7; i++) u[i] = uMPC[i];
             u[0] = T1a;
             if (lam < 1.0) {
-                /* コミット域: 横推力を姿勢レートダンピング専用へ (kdw=2.0) */
-                const double kdw = 2.0;
+                /* コミット域: 直立への姿勢戻し + レートダンピング (MATLAB実装と同一) */
+                const double kdw = 2.0, kA = 1.5;
                 double w2 = x[11]/ex_scT, w3 = x[12]/ex_scT;
-                double T2d =  kdw*ex_Jzz*w3/ex_Lrt/ex_Fs;
-                double T3d = -kdw*ex_Jyy*w2/ex_Lrt/ex_Fs;
+                double sgn = (x[6] >= 0.0) ? 1.0 : -1.0;
+                double e2 = -2.0*sgn*x[8], e3 = -2.0*sgn*x[9];
+                double aD2 = kA*e2 - kdw*w2, aD3 = kA*e3 - kdw*w3;
+                double T2d = -aD3*ex_Jzz/ex_Lrt/ex_Fs;
+                double T3d =  aD2*ex_Jyy/ex_Lrt/ex_Fs;
                 u[1] = lam*u[1] + (1.0-lam)*T2d;
                 u[2] = lam*u[2] + (1.0-lam)*T3d;
             }

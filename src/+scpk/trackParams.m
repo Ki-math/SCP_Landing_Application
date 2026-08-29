@@ -20,7 +20,10 @@ qp = topt.qp;
 tp.maxIter    = double(qp.maxIter);
 tp.fixedIter  = 0;
 if isfield(topt,'fastQP') && topt.fastQP
-    tp.maxIter = 300;  tp.fixedIter = 1;
+    if isfield(topt,'fastIter'), tp.maxIter = double(topt.fastIter);
+    else,                        tp.maxIter = 300;
+    end
+    tp.fixedIter = 1;
 end
 tp.tolPri     = qp.tolPri;
 tp.tolDua     = qp.tolDua;

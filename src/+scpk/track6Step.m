@@ -103,7 +103,10 @@ tQ = tic;
 %% 悪化して墜落した (実測). 許容誤差スケーリング (Dx/Du) のみとする.
 qpo = topt.qp;
 if isfield(topt,'fastQP') && topt.fastQP
-    qpo.fixedIter = true;  qpo.maxIter = 300;       %% 固定反復 (決定的, ~9ms)
+    qpo.fixedIter = true;                           %% 固定反復 (決定的)
+    if isfield(topt,'fastIter'), qpo.maxIter = topt.fastIter;
+    else,                        qpo.maxIter = 300;
+    end
 end
 if isfield(topt,'useCpp') && topt.useCpp && exist('pipg_mex','file') == 3
     [z,qi] = scpk.solveQPC(prob, qpo, z0);          %% 手書きC++ (等価性検証済み)
