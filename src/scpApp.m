@@ -122,11 +122,15 @@ W.wndT = uitable(gE2,'Data',zeros(0,3), ...
 
 %% ---- 計画 ----
 p2 = uipanel(gtT,'Title','計画 (重み/スケーリング)');
-g2 = uigridlayout(p2,[2 4],'ColumnWidth',{'fit','1x','fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
+g2 = uigridlayout(p2,[3 4],'ColumnWidth',{'fit','1x','fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
 uilabel(g2,'Text','log10(終端重み)'); W.lamT = uieditfield(g2,'numeric','Value',8);
 uilabel(g2,'Text','燃料重み');        W.wF   = uieditfield(g2,'numeric','Value',25);
 uilabel(g2,'Text','位置許容 [m]');    W.tolP = uieditfield(g2,'numeric','Value',5);
 uilabel(g2,'Text','速度許容 [m/s]');  W.tolV = uieditfield(g2,'numeric','Value',0.5);
+uilabel(g2,'Text','ノード倍率');      W.ndF  = uieditfield(g2,'numeric','Value',1, ...
+    'Tooltip',['計画のノード分割数の倍率 (テンプレート: starship 50 / falcon9 40ノード). ' ...
+    '増やすと離散化が細かくなるがQP規模ほぼ比例で計画が遅くなる (上限N=200). ' ...
+    'フェーズ構成・点火・傾斜スケジュールは整合再構成される (scpSetNodes)']);
 
 %% ---- 追従・制御 ----
 p3 = uipanel(gtT,'Title','追従MPC / 制御');
@@ -331,6 +335,7 @@ function setDefaults()
         lamT = pT.passes(end).set.lamTerm;
     end
     W.lamT.Value = round(log10(lamT));
+    W.ndF.Value  = 1;
     W.wPos.Value = pT.track.wPos;    W.wVel.Value = pT.track.wVel;
     W.wQt.Value  = pT.track.wQuat;   W.wRt.Value  = pT.track.wRate;
     W.H.Value    = pT.track.H;
@@ -374,6 +379,7 @@ function prob = buildProb()
                 'kFlapDrag',W.kFd.Value, 'hmin_m',W.hMn.Value, 'wMaxDeg',W.wMx.Value, ...
                 'atmIsa',double(strcmp(W.atm.Value,'ISA標準大気')), 'hPad',W.hPad.Value);
     prob = scpProblem(W.veh.Value, ov);
+    if W.ndF.Value ~= 1, prob = scpSetNodes(prob, W.ndF.Value); end
     prob.windProf = getWindProf();               % 風況プロファイル (閉ループ/MCSへ)
     if W.windTune.Value, prob = scpWindTune(prob); end   % 強風レシピ (環境タブ)
     q0 = prob.x0(7:10);
@@ -896,7 +902,8 @@ function s = gatherSettings()
                     'VrefSurf_ms',W.vSrf.Value,'surfGain',W.sGn.Value, ...
                     'kFlapDrag',W.kFd.Value,'hmin_m',W.hMn.Value,'wMax_degs',W.wMx.Value);
     s.plan = struct('log10LamTerm',W.lamT.Value,'wFuel',W.wF.Value, ...
-                    'tolPos_m',W.tolP.Value,'tolVel_ms',W.tolV.Value);
+                    'tolPos_m',W.tolP.Value,'tolVel_ms',W.tolV.Value, ...
+                    'nodeFactor',W.ndF.Value);
     s.track= struct('ctlMode',tern(startsWith(W.ctl.Value,'方式2'),'inner','direct'), ...
                     'wPos',W.wPos.Value,'wVel',W.wVel.Value, ...
                     'wQuat',W.wQt.Value,'wRate',W.wRt.Value,'H',W.H.Value);
@@ -947,6 +954,7 @@ function applySettings(s)
     W.wF.Value   = gs('plan','wFuel',W.wF.Value);
     W.tolP.Value = gs('plan','tolPos_m',W.tolP.Value);
     W.tolV.Value = gs('plan','tolVel_ms',W.tolV.Value);
+    W.ndF.Value  = gs('plan','nodeFactor',W.ndF.Value);
     if strcmp(gs('track','ctlMode','inner'),'inner')
         W.ctl.Value = '方式2: 内ループ+アクチュエータ';
     else
