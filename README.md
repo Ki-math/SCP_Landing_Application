@@ -127,7 +127,6 @@ src/                        … ソース系 (ライブラリ本体)
   scpProblem/scpPlan/scpClosedLoop/scpCodegenZip/scpApp.m … API と GUI
   cpp/                      …   C++ソース (pipg_core.hpp ほか)・MEX・codegen生成物
 util/                       … ユーティリティ系 (実行ドライバ・可視化・コード生成)
-  legacy/                   …   旧世代・旧nlmpc系資産 (削除候補)
 examples/                   … コマンド実行ワークフロー
   example_starship.m / example_falcon9.m / run_main.m
 config/                     … 設定JSON (settings_*) と変動定義 (dispersions_*)
