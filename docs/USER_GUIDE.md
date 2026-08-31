@@ -11,7 +11,7 @@ Starship 型（ベリーフロップ→フリップ）と Falcon 9 型（ホバ�
 
 ## 目次
 
-1. [インストールとクイックスタート](#1-インストールとクイックスタート)
+1. [インストールとクイックスタート](#1-インストールとクイックスタート) — **パラメータの全体地図**（どのグループにどう指定するか）を含む
 2. [座標系と状態・制御ベクトル](#2-座標系と状態制御ベクトル)
 3. [フェーズ構成と自由終端時間](#3-フェーズ構成と自由終端時間)
 4. [制約のイメージと計画パラメータ（prob.opt）](#4-制約のイメージと計画パラメータprobopt)
@@ -47,6 +47,50 @@ examples/ の2スクリプトが最良の入門書です。節ごとにコメン
 「何を・なぜ・どう変えるか」を記載しています。
 
 ![全体アーキテクチャ](figures/fig_architecture.svg)
+
+### パラメータの全体地図（最初にここを読む）
+
+パラメータは**所属する入れ物（グループ）ごとに指定場所が決まっています**。
+本書の各パラメータ表は下のグループ単位で章立てされており、表中の名前は
+必ず対応するプレフィックスを付けて指定します（例: `wFuel` → `prob.opt.wFuel`、
+`ctlMode` → `prob.ctlMode` または prm の `'ctlMode'`）。
+
+```matlab
+prob = scpProblem('falcon9', ov);   % ov = 機体諸元の上書き ................ §7
+%  ├─ prob.opt.*        計画の重み・許容誤差・制約・QP設定 ............... §4
+%  ├─ prob.passes       多段求解（継続法）の上書き連鎖 ................... §4
+%  ├─ prob.track.*      追従MPCの重み・ホライズン・実行周期 .............. §5
+%  ├─ prob.x0 / phase / eng / tiltN / sig0   初期条件・フェーズ構成 ....... §3
+%  ├─ prob.windProf     風況プロファイル（計画・プラント両方に入る）...... §6
+%  ├─ prob.okCrit       MCS成功判定のしきい値 ............................ §6
+%  └─ prob.ctlMode / refSync / velFB / velFBi / latFreezeAlt /
+%     errTrig / cutoffAlt      閉ループ誘導・制御の機体既定 .............. §6
+%                              （prm で同名指定するとその実行だけ上書き）
+sol = scpPlan(prob);                          % 計画（prob を渡すだけ）
+R   = scpClosedLoop(prob, prm);               % prm = 外乱・制御の実行時指定 §6
+out = scpMCS(prob, 変動定義, N, prm);          % 変動定義 = §6 MCS変動定義
+```
+
+指定例（この3通りを混同しないこと）:
+
+```matlab
+% (a) 機体諸元 — scpProblem の第2引数 ov で（後から prob.cfg を直接触らない）
+prob = scpProblem('falcon9', struct('dryMass',26e3, 'Isp',285));
+
+% (b) 計画・追従の設計パラメータ — prob の該当グループに代入してから scpPlan
+prob.opt.wFuel   = 20;      % 計画グループ（§4）
+prob.track.wQuat = 3.0;     % 追従グループ（§5）
+sol = scpPlan(prob);
+
+% (c) 外乱・制御の実行時指定 — scpClosedLoop / scpMCS の prm で
+R = scpClosedLoop(prob, struct('thrEff',0.97, 'windY',0.2, ...
+                               'ctlMode','inner', 'thrLead',0.5));
+```
+
+同じ名前が prob と prm の両方にあるもの（ctlMode, velFB, errTrig など）は
+「prob = 機体の既定値、prm = その実行だけの上書き」で、**prm が優先**です。
+GUI のタブ（機体/詳細諸元/環境/調整/制御/MCS）はこのグループ分けに対応して
+います。
 
 ---
 
@@ -84,6 +128,13 @@ examples/ の2スクリプトが最良の入門書です。節ごとにコメン
 | `prob.eng` | 1×N | 各ノードの点火エンジン基数（0=無推力） |
 | `prob.tiltN` | 1×(N+1) | 各ノードの傾斜角上限 [rad]（姿勢プロファイルの骨格） |
 | `prob.sig0` | 1×P | 各フェーズ時間の初期推定 [s] |
+
+**指定方法**: `prob.<名前> = 配列;` を `scpPlan(prob)` の前に。ノード数を
+一括で変える場合は `prob = scpSetNodes(prob, 1.5);`（フェーズ・点火・傾斜
+スケジュールを整合再構成。GUIでは調整タブの「ノード倍率」）。初期条件は
+`prob.x0` の該当要素を直接書き換えます（高度=x0(1), クロス=x0(2),
+ダウンレンジ=x0(3), 機体系速度=x0(4:6)。テンプレートから大きく変えた場合の
+フェーズ時間は scpPlan が自動で相似伸縮します）。
 | `prob.opt.sigMin/sigMax` | 1×P | 各フェーズ時間の下限/上限 [s] |
 
 ---
@@ -100,6 +151,10 @@ examples/ の2スクリプトが最良の入門書です。節ごとにコメン
 tol.*（優先度）/ lam*（ソフト制約の硬さ）/ 物理制約 / passes（多段求解）の4種だけ**です。
 
 ### prob.opt 全パラメータ
+
+**指定方法**: `prob.opt.<名前> = 値;` を `scpPlan(prob)` の**前**に書く
+（例: `prob.opt.wFuel = 20;  prob.opt.tol.pos = 2;`）。
+GUIでは「調整」タブの計画パネルに主要項目があります。
 
 **既定値の読み方**: 表の「既定」は基礎設定 (`scpk.planOptions6`) の値です。
 機体テンプレート `scpProblem('starship'/'falcon9')` はこの上に機体向けの値を
@@ -197,6 +252,10 @@ prob.passes(2).sigma = [7.5 4 4 1.8];                % (任意) フェーズ時�
 ## 5. 追従MPCパラメータ（prob.track）
 
 計画軌道を参照として100ms周期で解く LTV-MPC の設定です（`scpk.track6Options`）。
+
+**指定方法**: `prob.track.<名前> = 値;` を `scpClosedLoop` / `scpMCS` の**前**に
+書く（例: `prob.track.wQuat = 3.0;  prob.track.H = 30;`）。計画には影響しない
+ため scpPlan の後で変えても構いません。GUIでは「調整」タブの追従MPCパネル。
 
 **許容誤差 `tol.*`**: §4 と同じ「1単位ずれたら同じくらい困る量」によるスケーリングを、
 追従層では**計画からの偏差**に適用します。計画層より小さい値（＝偏差に厳しい）が既定です。
@@ -376,6 +435,13 @@ windScale抽選で実質13〜15 m/s相当の強風ケース。vTd max 5.0・傾�
 
 ### 閉ループの外乱・設定（`scpClosedLoop(prob, prm)` の prm）
 
+**指定方法**: `scpClosedLoop` / `scpMCS` の**第2引数の struct** で渡します
+（例: `R = scpClosedLoop(prob, struct('thrEff',0.97,'windY',0.2,'ctlMode','inner'));`）。
+「テンプレート既定」と書かれた項目は `prob.<名前> = 値;` でも指定でき
+（機体の既定値として以降のMCS等にも引き継がれる）、**同名を prm で渡すと
+その実行だけ prm が優先**されます。GUIでは「制御」タブ（誘導・内ループ・周期）と
+「調整」タブの外乱パネルに対応します。
+
 | フィールド | 既定 | 内容 |
 |---|---|---|
 | `thrEff` | 0.97 | 推力効率（実推力=指令×thrEff） |
@@ -389,7 +455,7 @@ windScale抽選で実質13〜15 m/s相当の強風ケース。vTd max 5.0・傾�
 | `velTrig` | inf | 同、速度誤差 [m/s] |
 | `dtR` | 1.0 | 再計画の最短間隔 [s] |
 | `reAltMin` | 220 | 再計画を許す最低高度余裕 [m] |
-| `ctlMode` | starship='inner' / falcon9='direct'（テンプレート既定） | 'direct'=方式1（MPC推力直接）/ 'inner'=方式2（10ms姿勢内ループ+アクチュエータ動特性） |
+| `ctlMode` | starship='inner' / falcon9='direct'（テンプレート既定） | 'direct'=方式1（MPC推力直接）/ 'inner'=方式2（10ms姿勢内ループ+アクチュエータ動特性）。指定は `prm.ctlMode`（その実行のみ）または `prob.ctlMode`（既定変更。`prob.ctlModeForce` も同義） |
 | `wnAtt` / `ztAtt` | 1.2 / 0.9 | 方式2の姿勢ループ帯域 [rad/s] / 減衰比 |
 | `tauThr` | 0.10 | 方式2: スロットルの1次遅れ時定数 [s] |
 | `fGim` / `ztGim` | 6 / 0.707 | 方式2: TVC（ジンバル）アクチュエータ2次系の固有周波数 [Hz] / 減衰比 |
@@ -412,6 +478,13 @@ windScale抽選で実質13〜15 m/s相当の強風ケース。vTd max 5.0・傾�
 機体切替でファイル選択が自動追随し、不一致時は警告します）。
 
 ### MCS変動定義（config/dispersions_*.m / .json）
+
+**指定方法**: `scpMCS` の**第2引数**で渡します。3形式のいずれか:
+`.m 関数名`（例 `'dispersions_starship'`）、`.json パス`
+（例 `fullfile('config','dispersions_falcon9.json')`）、
+または cell 配列を直接（例 `{'thrEff','uniform',0.96,1.0; 'dr0y','normal3',0,5}`）。
+**変動定義は機体専用**（諸元が絶対値のため他機体に流用不可）。
+GUIでは「MCS」タブのファイル選択またはGUI表。
 
 各行が `{名前, 分布, p1, p2}`。分布は `uniform`（p1=下限, p2=上限）、
 `normal`（p1=平均, p2=標準偏差、打ち切りなし）、`normal3`（同、**±3σで打ち切り**。推奨）。
@@ -487,9 +560,13 @@ mcs = scpMCS(prob, 'dispersions_falcon9.json', 20, ...
 
 ## 7. 機体パラメータ（諸元と派生量）
 
-`scpProblem(vehicle, ov)` の第2引数 `ov`（struct）で機体を差し替えます。
-**未指定の派生量は一次諸元から自動計算**されます（NaN指定も自動の意味）。
-GUIでは「機体」タブ＝一次諸元、「詳細諸元」タブ＝派生量です。
+**指定方法**: `scpProblem(vehicle, ov)` の**第2引数 `ov`（struct）**で機体を
+差し替えます。この表の名前はプレフィックスなしで ov のフィールド名として
+使います（例: `prob = scpProblem('falcon9', struct('dryMass',26e3,'Isp',285));`）。
+生成後の `prob.cfg` を直接書き換えるのは非推奨です（派生量の再計算や生成MEXとの
+構造整合が壊れます）。**未指定の派生量は一次諸元から自動計算**されます
+（NaN指定も自動の意味）。GUIでは「機体」タブ＝一次諸元、「詳細諸元」タブ＝派生量。
+MCSの機体諸元変動（§6）もこの表の名前を使います。
 
 **一次諸元**
 
