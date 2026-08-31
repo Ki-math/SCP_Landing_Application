@@ -70,14 +70,21 @@ fprintf(fid,'static const double ex_tdAlt = %s;  /* 接地判定高度 [m] */\n\
 %% --- 制御方式・誘導設定 (機体テンプレート scpProblem から引き継ぎ) ---
 pT = scpProblem(vehicle);
 gT = @(f,d) getFieldOr(pT, f, d);
-ctl.ctlMode      = gT('ctlModeForce','direct');
+ctl.ctlMode      = gT('ctlModeForce',gT('ctlMode','inner'));
 ctl.refSync      = gT('refSync','time');
 ctl.velFB        = gT('velFB',0);
 ctl.velFBi       = gT('velFBi',0);
 ctl.latFreezeAlt = gT('latFreezeAlt',0);
 ctl.cutoffAlt    = gT('cutoffAlt',0);
 ctl.cutoffV      = -0.5;
-ctl.wnAtt = 1.2;  ctl.ztAtt = 0.9;
+ctl.suicideBurn  = gT('suicideBurn',false);
+ctl.suicideMargin = gT('suicideMargin',1.0);
+ctl.suicideVtd   = gT('suicideVtd',0);
+ctl.suicideNomEff = gT('suicideNomEff',0.97);
+ctl.suicideRefBlend = gT('suicideRefBlend',0);
+ctl.suicideVelBlend = gT('suicideVelBlend',1);
+ctl.suicideAdvanceMax = gT('suicideAdvanceMax',0);
+ctl.wnAtt = gT('wnAtt',1.2);  ctl.ztAtt = gT('ztAtt',0.9);
 ctl.tauThr = 0.10;  ctl.fGim = 6;  ctl.ztGim = 0.707;  ctl.tauFlap = 0.20;
 ctl.actRateLim = 0;
 fprintf(fid,'/* 制御方式・誘導設定 (機体テンプレート由来) */\n');
@@ -88,6 +95,11 @@ fprintf(fid,'static const int    ex_refSyncAlt = %d;   /* 1=高度同期(点火�
 fprintf(fid,'static const double ex_velFB = %s, ex_velFBi = %s;\n', lit(ctl.velFB), lit(ctl.velFBi));
 fprintf(fid,'static const double ex_latFreezeAlt = %s;  /* 着陸コミット高度 [m] */\n', lit(ctl.latFreezeAlt));
 fprintf(fid,'static const double ex_cutoffAlt = %s, ex_cutoffV = %s;\n', lit(ctl.cutoffAlt), lit(ctl.cutoffV));
+fprintf(fid,'static const int    ex_suicideBurn = %d;\n', double(ctl.suicideBurn));
+fprintf(fid,'static const double ex_suicideMargin = %s, ex_suicideVtd = %s, ex_suicideNomEff = %s;\n', ...
+    lit(ctl.suicideMargin), lit(ctl.suicideVtd), lit(ctl.suicideNomEff));
+fprintf(fid,'static const double ex_suicideRefBlend = %s, ex_suicideVelBlend = %s, ex_suicideAdvanceMax = %s;\n', ...
+    lit(ctl.suicideRefBlend), lit(ctl.suicideVelBlend), lit(ctl.suicideAdvanceMax));
 fprintf(fid,'static const double ex_wnAtt = %s, ex_ztAtt = %s;\n', lit(ctl.wnAtt), lit(ctl.ztAtt));
 fprintf(fid,'static const double ex_tauThr = %s, ex_fGim = %s, ex_ztGim = %s, ex_tauFlap = %s;\n', ...
     lit(ctl.tauThr), lit(ctl.fGim), lit(ctl.ztGim), lit(ctl.tauFlap));

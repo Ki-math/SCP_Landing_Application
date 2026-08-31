@@ -162,7 +162,7 @@ uilabel(g4,'Text','同 z [m/s]');                W.dv0z = uieditfield(g4,'numeri
 
 %% ---- 制御: 誘導 (機体切替でテンプレート値にリセット) ----
 pC1 = uipanel(gtC,'Title','誘導 (ホバースラム系. 機体テンプレート既定)');
-gC1 = uigridlayout(pC1,[3 4],'ColumnWidth',{'fit','1x','fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
+gC1 = uigridlayout(pC1,[7 4],'ColumnWidth',{'fit','1x','fit','1x'},'RowSpacing',3,'Padding',[6 4 6 4]);
 uilabel(gC1,'Text','参照同期');
 W.refS = uidropdown(gC1,'Items',{'時刻同期 (time)','高度同期 (alt)'}, ...
     'Tooltip','alt=点火ディスパッチ: 高度で参照を引きホバースラムのタイミング分散を吸収');
@@ -176,6 +176,21 @@ uilabel(gC1,'Text','カットオフ高度 [m]');  W.cutA = uieditfield(gC1,'nume
     'Tooltip','cutoffAlt. 接地高度+これ以下でほぼ停止したら機関停止し落下着地 (0=無効)');
 uilabel(gC1,'Text','同 速度閾値 [m/s]');   W.cutV = uieditfield(gC1,'numeric','Value',-0.5, ...
     'Tooltip','cutoffV. 鉛直速度がこれ以上 (ほぼ停止/上昇) で発動');
+uilabel(gC1,'Text','状態量点火補正'); W.suicide = uicheckbox(gC1,'Text','有効', ...
+    'Tooltip','停止距離から点火時刻を補正し, 高所停止と接地過速度を抑制');
+uilabel(gC1,'Text','停止距離安全倍率'); W.sbMargin = uieditfield(gC1,'numeric','Value',1.0, ...
+    'Limits',[0.5 2], 'Tooltip','suicideMargin. 1=計画点火点で校正, 大きいほど早期点火');
+uilabel(gC1,'Text','停止計算の接地速度 [m/s]'); W.sbVtd = uieditfield(gC1,'numeric','Value',0, ...
+    'Limits',[0 Inf], 'Tooltip','suicideVtd. 停止距離計算上の目標鉛直接地速度');
+uilabel(gC1,'Text','校正時の推力効率'); W.sbEff = uieditfield(gC1,'numeric','Value',0.97, ...
+    'Limits',[0.1 1.5], 'Tooltip','suicideNomEff. 計画点火点の停止距離校正に使用');
+uilabel(gC1,'Text','MPC参照補正比'); W.sbRef = uieditfield(gC1,'numeric','Value',0.45, ...
+    'Limits',[0 1], 'Tooltip','suicideRefBlend. 点火時刻補正を状態・姿勢参照へ反映する割合');
+uilabel(gC1,'Text','速度参照補正比'); W.sbVel = uieditfield(gC1,'numeric','Value',1.0, ...
+    'Limits',[0 2], 'Tooltip','suicideVelBlend. 点火時刻補正を鉛直速度FB参照へ反映する割合');
+uilabel(gC1,'Text','最大前倒し [s]'); W.sbAdv = uieditfield(gC1,'numeric','Value',0, ...
+    'Limits',[0 Inf], 'Tooltip','suicideAdvanceMax. 計画点火より前に点火できる最大時間');
+uilabel(gC1,'Text',''); uilabel(gC1,'Text','');
 
 %% ---- 制御: 内ループ・アクチュエータ (方式2) ----
 pC2 = uipanel(gtC,'Title','姿勢内ループ / アクチュエータ (方式2で使用)');
@@ -353,7 +368,14 @@ function setDefaults()
     W.latF.Value = gT('latFreezeAlt',0);
     W.cutA.Value = gT('cutoffAlt',0);
     W.cutV.Value = -0.5;
-    W.wnA.Value = 1.2;  W.ztA.Value = 0.9;  W.tauT.Value = 0.10;
+    W.suicide.Value = logical(gT('suicideBurn',false));
+    W.sbMargin.Value = gT('suicideMargin',1.0);
+    W.sbVtd.Value = gT('suicideVtd',0);
+    W.sbEff.Value = gT('suicideNomEff',0.97);
+    W.sbRef.Value = gT('suicideRefBlend',0.5);
+    W.sbVel.Value = gT('suicideVelBlend',1.0);
+    W.sbAdv.Value = gT('suicideAdvanceMax',0);
+    W.wnA.Value = gT('wnAtt',1.2);  W.ztA.Value = gT('ztAtt',0.9);  W.tauT.Value = 0.10;
     W.fG.Value = 6;  W.ztG.Value = 0.707;  W.tauF.Value = 0.20;  W.aRL.Value = false;
     W.tLd.Value = 0;
     W.dtC.Value = pT.track.dtCtrl;  W.dtP.Value = pT.track.dtPlant;
@@ -571,6 +593,13 @@ function prm = ctlPrm(prm)
     prm.velFB = W.vFB.Value;          prm.velFBi = W.vFBi.Value;
     prm.latFreezeAlt = W.latF.Value;
     prm.cutoffAlt = W.cutA.Value;     prm.cutoffV = W.cutV.Value;
+    prm.suicideBurn = double(W.suicide.Value);
+    prm.suicideMargin = W.sbMargin.Value;
+    prm.suicideVtd = W.sbVtd.Value;
+    prm.suicideNomEff = W.sbEff.Value;
+    prm.suicideRefBlend = W.sbRef.Value;
+    prm.suicideVelBlend = W.sbVel.Value;
+    prm.suicideAdvanceMax = W.sbAdv.Value;
     prm.wnAtt = W.wnA.Value;          prm.ztAtt = W.ztA.Value;
     prm.tauThr = W.tauT.Value;        prm.fGim = W.fG.Value;
     prm.ztGim = W.ztG.Value;          prm.tauFlap = W.tauF.Value;
@@ -824,6 +853,12 @@ function doGenScript()
             tern(contains(W.refS.Value,'alt'),'alt','time'), n(W.vFB.Value), n(W.vFBi.Value), n(W.latF.Value));
         L{end+1} = sprintf('             ''cutoffAlt'',%s, ''cutoffV'',%s, ''wnAtt'',%s, ''ztAtt'',%s, ...', ...
             n(W.cutA.Value), n(W.cutV.Value), n(W.wnA.Value), n(W.ztA.Value));
+        L{end+1} = sprintf('             ''suicideBurn'',%d, ''suicideMargin'',%s, ...', ...
+            double(W.suicide.Value), n(W.sbMargin.Value));
+        L{end+1} = sprintf('             ''suicideVtd'',%s, ''suicideNomEff'',%s, ...', ...
+            n(W.sbVtd.Value), n(W.sbEff.Value));
+        L{end+1} = sprintf('             ''suicideRefBlend'',%s, ''suicideVelBlend'',%s, ''suicideAdvanceMax'',%s, ...', ...
+            n(W.sbRef.Value), n(W.sbVel.Value), n(W.sbAdv.Value));
         L{end+1} = sprintf('             ''tauThr'',%s, ''fGim'',%s, ''ztGim'',%s, ''tauFlap'',%s, ...', ...
             n(W.tauT.Value), n(W.fG.Value), n(W.ztG.Value), n(W.tauF.Value));
         L{end+1} = sprintf('             ''actRateLim'',%d, ''dtMpc'',%s, ''dtPlant'',%s);', ...
@@ -914,6 +949,10 @@ function s = gatherSettings()
     s.ctl  = struct('refSync',tern(contains(W.refS.Value,'alt'),'alt','time'), ...
                     'velFB',W.vFB.Value,'velFBi',W.vFBi.Value, ...
                     'latFreezeAlt',W.latF.Value,'cutoffAlt',W.cutA.Value,'cutoffV',W.cutV.Value, ...
+                    'suicideBurn',logical(W.suicide.Value),'suicideMargin',W.sbMargin.Value, ...
+                    'suicideVtd',W.sbVtd.Value,'suicideNomEff',W.sbEff.Value, ...
+                    'suicideRefBlend',W.sbRef.Value,'suicideVelBlend',W.sbVel.Value, ...
+                    'suicideAdvanceMax',W.sbAdv.Value, ...
                     'wnAtt',W.wnA.Value,'ztAtt',W.ztA.Value,'tauThr',W.tauT.Value, ...
                     'fGim',W.fG.Value,'ztGim',W.ztG.Value,'tauFlap',W.tauF.Value, ...
                     'thrLead',W.tLd.Value,'actRateLim',logical(W.aRL.Value), ...
@@ -993,6 +1032,13 @@ function applySettings(s)
     W.latF.Value = gs('ctl','latFreezeAlt',W.latF.Value);
     W.cutA.Value = gs('ctl','cutoffAlt',W.cutA.Value);
     W.cutV.Value = gs('ctl','cutoffV',W.cutV.Value);
+    W.suicide.Value = logical(gs('ctl','suicideBurn',W.suicide.Value));
+    W.sbMargin.Value = gs('ctl','suicideMargin',W.sbMargin.Value);
+    W.sbVtd.Value = gs('ctl','suicideVtd',W.sbVtd.Value);
+    W.sbEff.Value = gs('ctl','suicideNomEff',W.sbEff.Value);
+    W.sbRef.Value = gs('ctl','suicideRefBlend',W.sbRef.Value);
+    W.sbVel.Value = gs('ctl','suicideVelBlend',W.sbVel.Value);
+    W.sbAdv.Value = gs('ctl','suicideAdvanceMax',W.sbAdv.Value);
     W.wnA.Value  = gs('ctl','wnAtt',W.wnA.Value);
     W.ztA.Value  = gs('ctl','ztAtt',W.ztA.Value);
     W.tauT.Value = gs('ctl','tauThr',W.tauT.Value);

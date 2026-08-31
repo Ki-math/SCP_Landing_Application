@@ -43,10 +43,12 @@ prob.x0(6) = 0;        % 水平速度 [m/s] (機体系z)
 % --- 計画チューニングを変える場合 (代表例) ---
 % prob.opt.wFuel   = 25;              % 燃料重視度
 % prob.opt.wTilt   = 0.1;             % 傾斜正則化 (falcon9既定 0.1)
-prob.opt.tol.pos = 5;               % 位置スケーリング [m] (小さい=位置を重視)
+prob.opt.tol.pos = 10;               % 位置スケーリング [m] (小さい=位置を重視)
+prob.track.wPos  = 32;               % inner方式で着地点への収束を強化
 % prob.tiltN(:)    = deg2rad(8);      % 傾斜角スケジュール上限 [rad]
 
 % 風モデル
+% 風速 [m/s] は windProf で与える. MCS の windScale はこのプロファイルを倍率変動させる.
 prob.windProf = loadWindProfile('config/wind_shear_example.json');
 
 fprintf('--- 1. 問題設定: %s (質量 %.1f t, エンジン %d基) ---\n', ...
@@ -75,7 +77,9 @@ fprintf('--- 2. 計画完了: tf=%.1fs 終端(高度%.1fm, 水平%.1fm) 燃料%.
 %   errTrig  オンライン再計画のトリガ誤差 [m] (inf=再計画なし)
 %   windProf 高度依存の風況プロファイル (prob.windProf =
 %            loadWindProfile('config/wind_shear_example.json') でも指定可)
-prob.ctlMode='inner';
+% 誘導は姿勢コマンドを生成し, 姿勢内ループとアクチュエータ動特性を介して飛行する.
+% 本評価モデルの内ループはPD近似で, 実機PIDとの接続境界は姿勢コマンド qCmd.
+prob.ctlMode = 'inner';
 R = scpClosedLoop(prob, struct('thrEff',0.97, 'windY',0.2));
 
 plotClosedLoop(sol, R.log, cfg);        % 計画 vs 閉ループ の6面図

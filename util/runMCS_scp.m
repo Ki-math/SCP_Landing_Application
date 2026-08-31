@@ -29,6 +29,7 @@ addpath(fullfile(proj,'src'), fullfile(proj,'src','cpp'), fullfile(proj,'config'
 spec = loadDispersions(dispFile);       % .m 関数名 / .json パス / cell直接指定
 if iscell(dispFile), dispName = sprintf('GUI表 %d項目', size(spec,1)); else, dispName = dispFile; end
 nP = size(spec,1);
+warnLargeEquivalentWind(spec);
 
 %% --- 標本生成 ---
 X = zeros(N,nP);
@@ -119,7 +120,7 @@ if ~(isfield(prm0,'noPlot') && prm0.noPlot)
     title(sprintf('残燃料 (平均%.2f / 最小%.2f t)', mean(fu,'omitnan'), min(fu)));
 end
 
-out = struct('res',res,'X',X,'spec',{spec},'N',N);
+out = struct('res',res,'X',X,'spec',{spec},'N',N,'prm',prm0);
 save(fullfile(proj,'results','mcs_scp.mat'),'-struct','out');
 fprintf('保存: results/mcs_scp.mat\n');
 
@@ -160,3 +161,26 @@ end
 end
 
 function s = ternary(c,a,b), if c, s=a; else, s=b; end, end
+
+function warnLargeEquivalentWind(spec)
+%WARNLARGEEQUIVALENTWIND  windY の風速との単位誤認を警告する.
+i = find(strcmp(spec(:,1),'windY'), 1);
+if isempty(i), return; end
+dist = lower(string(spec{i,2}));
+p1 = spec{i,3};
+p2 = spec{i,4};
+switch dist
+    case {"normal","normal3"}
+        extent = abs(p1) + 3*abs(p2);
+    case "uniform"
+        extent = max(abs([p1,p2]));
+    otherwise
+        return
+end
+if extent > 2
+    warning('runMCS_scp:LargeEquivalentWindAcceleration', ...
+        ['windY は風速ではなく一定の等価横加速度 [m/s^2] です。' ...
+         '指定分布の代表範囲は最大 %.2f m/s^2 です。' ...
+         '風速 [m/s] の分散には windProf と windScale を使用してください。'], extent);
+end
+end

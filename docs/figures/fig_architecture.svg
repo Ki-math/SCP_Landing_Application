@@ -101,6 +101,6 @@
     <path d="M 775 370 V 402 H 440 V 209 H 468" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#ar3)"/>
     <text x="560" y="396" font-size="11.5" fill="#555">状態フィードバック x</text>
 
-    <text x="415" y="432" font-size="12" fill="#555">方式1 (ctlMode='direct') は MPC出力を直接プラントへ (falcon9 既定)</text>
+    <text x="415" y="432" font-size="12" fill="#555">方式2 (ctlMode='inner') を starship / falcon9 の既定とする</text>
   </g>
 </svg>

@@ -72,7 +72,7 @@
   <path class="wire" d="M743,285 L762,285"/>
   <rect x="762" y="260" width="130" height="50" class="box" rx="4"/>
   <text x="827" y="280" text-anchor="middle" class="ts">ジンバル角 (小角)</text>
-  <text x="827" y="296" text-anchor="middle" class="ts">δ=ΣT/|Tc|, ±tvcMax</text>
+  <text x="827" y="296" text-anchor="middle" class="ts">δ=ΣT/|Tc|, ‖δ‖≤tvcMax</text>
 
   <!-- 横推力フィードフォワード -> 加算器の下から結線 -->
   <path class="wire" d="M190,320 L240,320 L240,370 L730,370 L730,300"/>

@@ -12,7 +12,7 @@ MATLAB・MEX・BLAS/LAPACK に一切依存しない純 C/C++ ソースのみの�
 | gnc/ `scpk_planIterEmb` | 計画SCP 1反復 (フル計画/オンライン再計画) | 可 (examples/main_planner_example.c) |
 | gnc/ `scpk_trackStepEmb` | 追従MPC 1周期 (LTV追従QP) | 可 (examples/main_tracker_example.c) |
 | gnc/ `dyn` | 6自由度力学 (ISA大気・風テーブル込み) | 可 (プラントシミュレーション等) |
-| guidance/ | 参照サンプリング・点火ディスパッチ・鉛直速度FB | 可 (手書き純C, 依存なし) |
+| guidance/ | 参照サンプリング・停止距離による状態量点火・鉛直速度FB | 可 (手書き純C, 依存なし) |
 | solver/ `pipg_solve_csc` | PIPG QPソルバ単体 (ヘッダオンリー) | 可 (examples/main_solver_example.cpp) |
 | 全部 | 誘導制御ループ | examples/main_gnc_example.c |
 
@@ -27,9 +27,10 @@ gnc/        GNCコアのフルC実装 (MATLAB Coder 生成, BLASフリー)
             型定義は gncCore_lib_types.h で共有
 guidance/   誘導・制御ロジック部品 (手書き純C):
               gnc_guidance.h    参照サンプリング / 点火ディスパッチ
+                                / スーサイドバーン点火時刻補正
                                 (高度→参照時刻) / 鉛直速度FB
               gnc_attitude.h    姿勢内ループ (制御方式2: PD則 wnAtt/ztAtt)
-                                + アクチュエータ動特性 (TVC2次系,
+                                + アクチュエータ動特性 (TVC2次系・2軸合成角制限,
                                 スロットル・舵面1次遅れ, スルーレート飽和)
 solver/     手書きC++ PIPG QPソルバ単体 (pipg_core.hpp, ヘッダオンリー)
             エントリポイント: pipg_solve_csc (Cリンケージ)

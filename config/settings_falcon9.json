@@ -41,9 +41,9 @@
     "tolVel_ms": 0.5
   },
   "track": {
-    "ctlMode": "direct",
-    "wPos": 8,
-    "wVel": 2,
+    "ctlMode": "inner",
+    "wPos": 32,
+    "wVel": 0.5,
     "wQuat": 2.5,
     "wRate": 2.0,
     "H": 25
@@ -63,6 +63,31 @@
       -1,
       1.5
     ]
+  },
+  "ctl": {
+    "refSync": "alt",
+    "velFB": 0.7,
+    "velFBi": 0,
+    "latFreezeAlt": 60,
+    "cutoffAlt": 60,
+    "cutoffV": -0.5,
+    "suicideBurn": true,
+    "suicideMargin": 0.995,
+    "suicideVtd": 0,
+    "suicideNomEff": 0.97,
+    "suicideRefBlend": 0.45,
+    "suicideVelBlend": 1.0,
+    "suicideAdvanceMax": 0,
+    "wnAtt": 1.8,
+    "ztAtt": 1.2,
+    "tauThr": 0.1,
+    "fGim": 6,
+    "ztGim": 0.707,
+    "tauFlap": 0.2,
+    "thrLead": 0,
+    "actRateLim": false,
+    "dtMpc": 0.1,
+    "dtPlant": 0.01
   },
   "env": {
     "atmIsa": 1,

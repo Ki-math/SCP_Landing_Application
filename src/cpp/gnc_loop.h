@@ -60,11 +60,12 @@ static gnc_result_t gnc_run(const struct0_T *cfg, const struct5_T *tp,
                             double thrEff, FILE *logf)
 {
     static double xr[14*61], ur[7*60], engk[60], zw[1300], zo[1300];
-    double x[14], xc[14], sx[14], u0[7], uMPC[7], u[7], qCmd[4], xrNow[14];
+    double x[14], xc[14], sx[14], u0[7], uMPC[7], u[7], qCmd[4], xrNow[14], xrVel[14];
     int xr_size[2], ur_size[2], engk_size[2], zw_size[1], zo_size[1];
-    int st, iters, i, sub, H = ex_H, nSub, cutDone = 0, s;
-    double t = 0.0, tEnd, tpRef, engNow, TcN = 0.0, dvF = 0.0, Tint = 0.0;
-    double T1a, lam, msMpc;
+    int st, iters, i, sub, H = ex_H, nSub, cutDone = 0, burnStarted = 0, s;
+    double t = 0.0, tEnd, tpRef, tpRaw, tpEng, tpVel, engNow;
+    double TcN = 0.0, dvF = 0.0, Tint = 0.0, burnRefShift = 0.0;
+    double T1a, lam, msMpc, tIgn = 0.0, engIgn = 0.0, burnFactor = 1.0;
     clock_t cM;
     gnc_result_t res;
     gnc_ref_t ref;
@@ -76,6 +77,26 @@ static gnc_result_t gnc_run(const struct0_T *cfg, const struct5_T *tp,
     ref.n = ex_ref_t_size[1];  ref.nu = ex_ref_u_size[1];
     tEnd = ex_ref_t[ref.n-1] + 20.0;
     gnc_alt_table(&ref, ex_scL, &altTab);
+    if (ex_suicideBurn) {
+        for (i = 0; i < ref.nu; i++) {
+            if (ref.eng[i] > 0.0) {
+                double vDown, hRem, mRef, aBrake, dStop;
+                tIgn = ref.t[i];
+                engIgn = ref.eng[i];
+                vDown = fmax(-gnc_vI1(&ref.x[14*i])*ex_scV, 0.0);
+                hRem = fmax(ref.x[14*i]*ex_scL - ex_tdAlt, 0.0);
+                mRef = ref.x[14*i+13]*ex_m0;
+                aBrake = engIgn*ex_Tmax1*ex_Fs*ex_suicideNomEff/mRef - 9.80665;
+                dStop = fmax(vDown*vDown - ex_suicideVtd*ex_suicideVtd, 0.0) /
+                        (2.0*fmax(aBrake, 1e-12));
+                if (hRem > 0.0 && dStop > 1e-12 && aBrake > 0.0)
+                    burnFactor = hRem/dStop;
+                else
+                    engIgn = 0.0;
+                break;
+            }
+        }
+    }
 
     ic.wnAtt = ex_wnAtt;  ic.ztAtt = ex_ztAtt;
     ic.tauThr = ex_tauThr;  ic.wnGim = 2.0*3.14159265358979323846*ex_fGim;
@@ -102,9 +123,45 @@ static gnc_result_t gnc_run(const struct0_T *cfg, const struct5_T *tp,
 
     for (s = 0; ; s++) {
         /* --- 参照時刻 (点火ディスパッチ or 時刻同期) --- */
-        tpRef = ex_refSyncAlt ? gnc_dispatch_time(&altTab, x[0]*ex_scL) : t;
-        engNow = gnc_ref_eng(&ref, tpRef);
+        tpRaw = ex_refSyncAlt ? gnc_dispatch_time(&altTab, x[0]*ex_scL) : t;
+        tpRef = tpRaw;
+        tpEng = tpRaw;
+        if (burnStarted) {
+            double ctrlShift = fmin(burnRefShift, 0.0) +
+                               ex_suicideRefBlend*fmax(burnRefShift, 0.0);
+            tpRef = fmin(fmax(tpRaw - ctrlShift, ref.t[0]), ref.t[ref.n-1]);
+            tpEng = fmin(fmax(tpRaw - burnRefShift, ref.t[0]), ref.t[ref.n-1]);
+        }
+        engNow = gnc_ref_eng(&ref, tpEng);
+        if (ex_suicideBurn && engIgn > 0.0 && !burnStarted) {
+            double vDown = fmax(-gnc_vI1(x)*ex_scV, 0.0);
+            double hRem = fmax(x[0]*ex_scL - ex_tdAlt, 0.0);
+            double mass = x[13]*ex_m0;
+            double aBrake = engIgn*ex_Tmax1*ex_Fs*thrEff/mass - 9.80665;
+            double dStop = fmax(vDown*vDown - ex_suicideVtd*ex_suicideVtd, 0.0) /
+                           (2.0*fmax(aBrake, 1e-12));
+            int burnRequired = hRem <= ex_suicideMargin*burnFactor*dStop;
+            int canStart = burnRequired && tpRaw >= tIgn - ex_suicideAdvanceMax;
+            if (canStart) {
+                double ctrlShift;
+                burnStarted = 1;
+                burnRefShift = tpRaw - tIgn;
+                ctrlShift = fmin(burnRefShift, 0.0) +
+                            ex_suicideRefBlend*fmax(burnRefShift, 0.0);
+                tpRef = fmin(fmax(tpRaw - ctrlShift, ref.t[0]), ref.t[ref.n-1]);
+                tpEng = tIgn;
+                engNow = engIgn;
+            } else
+                engNow = 0.0;
+        }
         gnc_ref_state(&ref, tpRef, xrNow);
+        tpVel = tpRaw;
+        if (burnStarted) {
+            double velShift = fmin(burnRefShift, 0.0) +
+                              ex_suicideVelBlend*fmax(burnRefShift, 0.0);
+            tpVel = fmin(fmax(tpRaw - velShift, ref.t[0]), ref.t[ref.n-1]);
+        }
+        gnc_ref_state(&ref, tpVel, xrVel);
         /* --- 追従MPC (dtCtrl 周期) --- */
         if (s % nSub == 0) {
             if (t >= tEnd) break;
@@ -128,7 +185,7 @@ static gnc_result_t gnc_run(const struct0_T *cfg, const struct5_T *tp,
         }
         /* --- 鉛直速度FB (10ms層, 参照 v(h) への推力トリム) --- */
         if (ex_velFB > 0.0 && engNow > 0.0) {
-            double dv1 = (xrNow[3] - x[3])*ex_scV;      /* 機体x速度誤差 [m/s] */
+            double dv1 = (xrVel[3] - x[3])*ex_scV;      /* 機体x速度誤差 [m/s] */
             double mph = x[13]*ex_m0, lim;
             dvF += ex_dtPlant/0.3*(dv1 - dvF);
             Tint += ex_velFBi*mph*dvF/ex_Fs*ex_dtPlant;
@@ -180,6 +237,10 @@ static gnc_result_t gnc_run(const struct0_T *cfg, const struct5_T *tp,
                 uM[1] *= lam;  uM[2] *= lam;
             }
             gnc_inner_step(&ic, &ist, qC, TcN, uM, x, ex_dtPlant, u);
+            if (ex_suicideBurn && !burnStarted) {
+                ist.Tm = 0.0;
+                u[0] = 0.0; u[1] = 0.0; u[2] = 0.0;
+            }
         }
         /* --- エンジンカットオフ (ホバースラム: 低高度で停止したら落下着地) --- */
         if (ex_cutoffAlt > 0.0 && !cutDone && engNow > 0.0 &&

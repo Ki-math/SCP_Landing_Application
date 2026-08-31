@@ -21,10 +21,10 @@
 
   <!-- 点火ディスパッチ -->
   <rect x="24" y="168" width="270" height="96" rx="10" fill="#FAC775" stroke="#BA7517" stroke-width="2"/>
-  <text x="40" y="194" font-size="14" font-weight="700" fill="#412402">点火ディスパッチ（10 ms）</text>
+  <text x="40" y="194" font-size="14" font-weight="700" fill="#412402">点火・参照ディスパッチ（10 ms）</text>
   <text x="40" y="214" font-size="12" fill="#633806">いまの高度 h → 参照時刻 t_ref を逆引き</text>
-  <text x="40" y="232" font-size="12" fill="#633806">「その高度で取るべき状態・推力」を出す</text>
-  <text x="40" y="252" font-size="11.5" font-style="italic" fill="#854F0B">時計の代わりに高度で参照を進める</text>
+  <text x="40" y="232" font-size="12" fill="#633806">d_stop=v²/(2a) で状態量点火時刻を補正</text>
+  <text x="40" y="252" font-size="11.5" font-style="italic" fill="#854F0B">早過ぎる点火を待機し、許容範囲内で前倒し</text>
   <line x1="160" y1="118" x2="160" y2="166" stroke="#BA7517" stroke-width="2" marker-end="url(#mA)"/>
 
   <!-- 追従MPC -->

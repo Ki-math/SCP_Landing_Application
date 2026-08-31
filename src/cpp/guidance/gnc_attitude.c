@@ -45,8 +45,14 @@ void gnc_inner_step(const gnc_inner_cfg_t *c, gnc_inner_state_t *s,
     /* ジンバル角コマンド = MPC横推力FF + PD補正 (小角) */
     {
         double den = (TcN > 1e3) ? TcN : 1e3;
-        dCmd[0] = clampd((uMPC[1]*c->Fs + T2c)/den, -c->tvcMax, c->tvcMax);
-        dCmd[1] = clampd((uMPC[2]*c->Fs + T3c)/den, -c->tvcMax, c->tvcMax);
+        double dNorm;
+        dCmd[0] = (uMPC[1]*c->Fs + T2c)/den;
+        dCmd[1] = (uMPC[2]*c->Fs + T3c)/den;
+        dNorm = hypot(dCmd[0], dCmd[1]);
+        if (dNorm > c->tvcMax) {
+            dCmd[0] *= c->tvcMax/dNorm;
+            dCmd[1] *= c->tvcMax/dNorm;
+        }
     }
     /* アクチュエータ: TVC 2次系 + スロットル/舵面 1次遅れ (前進オイラー) */
     for (i = 0; i < 2; i++) {
@@ -54,6 +60,20 @@ void gnc_inner_step(const gnc_inner_cfg_t *c, gnc_inner_state_t *s,
         if (c->actRateLim) s->dd[i] = clampd(s->dd[i], -c->tvcRate, c->tvcRate);
     }
     for (i = 0; i < 2; i++) s->d[i] += dtP*s->dd[i];
+    {
+        double dNorm = hypot(s->d[0], s->d[1]);
+        if (dNorm > c->tvcMax) {
+            double radialRate;
+            s->d[0] *= c->tvcMax/dNorm;
+            s->d[1] *= c->tvcMax/dNorm;
+            radialRate = (s->d[0]*s->dd[0] + s->d[1]*s->dd[1]) /
+                         (s->d[0]*s->d[0] + s->d[1]*s->d[1]);
+            if (radialRate > 0.0) {
+                s->dd[0] -= radialRate*s->d[0];
+                s->dd[1] -= radialRate*s->d[1];
+            }
+        }
+    }
     s->Tm += dtP*(TcN - s->Tm)/c->tauThr;
     for (i = 0; i < 4; i++) {
         df = (uMPC[3+i] - s->f[i])/c->tauFlap;

@@ -62,6 +62,13 @@ if isempty(windProf) && cfg.wOn > 0
     windProf = struct('h',cfg.wTabH(:), 'wy',cfg.wTabY(:), 'wz',cfg.wTabZ(:));
 end
 refSync = gp('refSync', 'time');  % 参照の同期: 'time' 時刻 | 'alt' 高度 (点火ディスパッチ)
+suicide = logical(gp('suicideBurn', false)); % 停止距離ベースの初回点火ディスパッチ
+suicideMargin = gp('suicideMargin', 1.0);    % 計画点火点に対する停止距離倍率
+suicideVtd = gp('suicideVtd', 0);            % 停止距離計算上の目標鉛直速度 [m/s]
+suicideNomEff = gp('suicideNomEff', 0.97);   % 計画点火点を校正する公称推力効率
+suicideRefBlend = min(max(gp('suicideRefBlend',0.5),0),1); % MPC参照への補正割合
+suicideVelBlend = min(max(gp('suicideVelBlend',1.0),0),2); % 鉛直速度参照への補正割合
+suicideAdvanceMax = max(gp('suicideAdvanceMax',0),0);       % 計画点火から許す前倒し量 [s]
 progFcn = gp('progressFcn', []);  % 進捗コールバック progressFcn(0..1) (GUI用)
 ctlMode = gp('ctlMode', 'direct');% 'direct'=方式1 (MPC推力直接) |
                                   % 'inner'=方式2 (10ms姿勢内ループ+アクチュエータ動特性)
@@ -127,6 +134,7 @@ rp.n=0; rp.ok=0; rp.time=[]; rp.t=[];
 [hTab,tTab] = altTable(refD, sc);                   %% 高度→参照時刻 の逆引き表
 nStep = round(tEnd/dtP);  lastRe = -inf;  navDone = false;  cutDone = false;
 engCap = inf;                     %% 過制動ガードの基数ラッチ (engGuard 参照)
+sb = initSuicideBurn(refD, cfg, tdAlt, suicideNomEff, suicide, suicideMargin, suicideVtd);
 for s = 0:nStep-1
     %% ログ (周期先頭の状態. 生成コード例 gnc_loop.h と同じ規約)
     if mod(s,10)==0, log.t(end+1)=t; log.x(:,end+1)=x.*sx; log.u(:,end+1)=u; end
@@ -144,13 +152,58 @@ for s = 0:nStep-1
         x(3) = x(3) - navJump/sc.L;  navDone = true;
     end
     %% --- 再計画 (1 s 周期, 動力飛行中, 高度 > 120 m) ---
+    tpRaw = tp;
+    if sb.started
+        %% 遅延点火時も状態・姿勢参照は現在高度に対応する点を使う.
+        %% 前倒し時だけ点火後参照まで進め, 燃焼前のゼロ推力指令を避ける.
+        ctrlShift = min(sb.refShift,0) + suicideRefBlend*max(sb.refShift,0);
+        tp = min(max(tpRaw - ctrlShift, refD.t(1)), refD.t(end));
+        tpEng = min(max(tpRaw - sb.refShift, refD.t(1)), refD.t(end));
+    else
+        tpEng = tpRaw;
+    end
     engNow = interp1(refD.t(1:numel(refD.engSched)), refD.engSched(:), ...
-                     min(tp,refD.t(end)), 'previous', 'extrap');
+                     min(tpEng,refD.t(end)), 'previous', 'extrap');
+    %% --- スーサイドバーン点火ディスパッチ ---
+    %% 計画点火時の「残高度 / 最大推力停止距離」を基準にし, 現在の降下速度,
+    %% 質量, 推力効率から状態量ベースの点火点を求める. 計画点火が早過ぎる場合は
+    %% 点火を待機し, 遅過ぎる場合は前倒しする. 点火時に参照時刻を計画点火点へ
+    %% シフトし, 以後のエンジン基数スケジュールを相対的に維持する.
+    if sb.enabled && ~sb.started
+        qSb = x(7:10)/norm(x(7:10));
+        vISb = quat2dcm(qSb.').'*x(4:6);
+        vDown = max(-vISb(1)*sc.V, 0);
+        hRem = max(x(1)*sc.L - tdAlt, 0);
+        mNow = x(14)*plantCfg.m0;
+        aBrake = sb.eng*cfg.Tmax1*cfg.Fs*thrEff/mNow - 9.80665;
+        dStop = max(vDown^2 - suicideVtd^2, 0)/(2*max(aBrake, eps));
+        burnRequired = hRem <= suicideMargin*sb.factor*dStop;
+        canStart = burnRequired && tpRaw >= sb.tIgn - suicideAdvanceMax;
+        if canStart
+            sb.started = true;
+            sb.tStart = t;
+            sb.hStart = x(1)*sc.L;
+            sb.refShift = tpRaw - sb.tIgn;
+            sb.advanced = sb.refShift < 0;
+            sb.delayed = sb.refShift > 0;
+            ctrlShift = min(sb.refShift,0) + suicideRefBlend*max(sb.refShift,0);
+            tp = min(max(tpRaw - ctrlShift, refD.t(1)), refD.t(end));
+            engNow = sb.eng;
+        else
+            engNow = 0;
+        end
+    end
     %% 低高度 (<250 m) では再計画しない: 終端直前の参照切替は追従を乱すだけで
     %% 得るものがない (実測: 水平20 m/傾斜8.5degに劣化). 最終進入は追従に任せる.
     %% トリガ式: 追従位置誤差 > errTrig のときだけ再計画 (小外乱では発火しない.
     %% 周期再計画は小外乱時にかえって精度を落とす — 実測 4.8 m -> 20 m).
     xrNow = interp1(refD.t, refD.xhat.', min(tp,refD.t(end)), 'linear', 'extrap').';
+    tpVel = tpRaw;
+    if sb.started
+        velShift = min(sb.refShift,0) + suicideVelBlend*max(sb.refShift,0);
+        tpVel = min(max(tpRaw - velShift, refD.t(1)), refD.t(end));
+    end
+    xrVel = interp1(refD.t, refD.xhat.', tpVel, 'linear', 'extrap').';
     posErr = norm(x(1:3) - xrNow(1:3))*sc.L;
     velErr = norm(x(4:6) - xrNow(4:6))*sc.V;
     %% --- 過制動ガード (エンジン基数の状態量トリガ前倒し) ---
@@ -190,6 +243,15 @@ for s = 0:nStep-1
         if okR
             refD = scpk.densify6(plan.sol, cfg, min(0.1, topt.dt/2));
             [hTab,tTab] = altTable(refD, sc);
+            wasStarted = sb.started;
+            advancedSb = sb.advanced;
+            delayedSb = sb.delayed;
+            tStartSb = sb.tStart;  hStartSb = sb.hStart;
+            sb = initSuicideBurn(refD, cfg, tdAlt, suicideNomEff, suicide, suicideMargin, suicideVtd);
+            if wasStarted
+                sb.started = true;  sb.advanced = advancedSb;  sb.delayed = delayedSb;
+                sb.tStart = tStartSb;  sb.hStart = hStartSb;
+            end
             tOff = t;  z0 = [];                     %% 参照更新, MPCウォームリセット
         end
     end
@@ -202,7 +264,7 @@ for s = 0:nStep-1
     end
     %% --- 鉛直速度フィードバック (10 ms, 参照 v(h) への推力トリム) ---
     if kVel > 0 && engNow > 0
-        dv1 = (xrNow(4) - x(4))*sc.V;               % 機体x速度誤差 [m/s] (参照-実)
+        dv1 = (xrVel(4) - x(4))*sc.V;               % 機体x速度誤差 [m/s] (参照-実)
         dvF = dvF + dtP/0.3*(dv1 - dvF);            % LPF(0.3s): 推力ジッタ->傾斜結合を切る
         dv1 = dvF;
         mph = x(14)*cfg.m0;                          % 現在質量 [kg]
@@ -268,7 +330,10 @@ for s = 0:nStep-1
         %% ジンバル角コマンド = MPC横推力のフィードフォワード + PD補正 (小角)
         %% (FFなしのPD単独では フリップの大機動モーメントを再構成できず破綻する)
         dCmd = (uFF*cfg.Fs + [T2c; T3c])/max(Tc,1e3);
-        dCmd = max(min(dCmd, cfg.veh.tvcMax), -cfg.veh.tvcMax);
+        ndCmd = norm(dCmd);
+        if ndCmd > cfg.veh.tvcMax
+            dCmd = dCmd*(cfg.veh.tvcMax/ndCmd);
+        end
         %% アクチュエータ: TVC 2次系, スロットル/舵面 1次遅れ (前進オイラー 10ms)
         %% + スルーレート飽和 (機体諸元 tvcRate / flapRate)
         act.dd = act.dd + dtP*(wnG^2*(dCmd - act.d) - 2*ztG*wnG*act.dd);
@@ -276,6 +341,14 @@ for s = 0:nStep-1
             act.dd = max(min(act.dd, plantCfg.veh.tvcRate), -plantCfg.veh.tvcRate);
         end
         act.d  = act.d + dtP*act.dd;
+        ndAct = norm(act.d);
+        if ndAct > plantCfg.veh.tvcMax
+            act.d = act.d*(plantCfg.veh.tvcMax/ndAct);
+            radialRate = dot(act.d,act.dd)/dot(act.d,act.d);
+            if radialRate > 0
+                act.dd = act.dd - radialRate*act.d;
+            end
+        end
         %% スロットルコマンド (thrLead>0 で1次遅れのリード補償)
         if thrLead > 0
             Tcm = Tc + thrLead*tauT*(Tc - TcPrev)/dtP;
@@ -292,6 +365,10 @@ for s = 0:nStep-1
         act.f  = act.f + dtP*df;
         u = [act.Tm*[1; act.d(1); act.d(2)]/cfg.Fs; act.f];
         if Tc < 1e3, u(1:3) = 0; end                  % エンジン停止中
+        if sb.enabled && ~sb.started
+            act.Tm = 0;
+            u(1:3) = 0;                               % 状態量点火点まで待機
+        end
     end
     %% --- エンジンカットオフ (ホバースラム: 低高度で停止したら落下着地) ---
     if cutAlt > 0 && ~cutDone && engNow > 0 && x(1)*sc.L < tdAlt + cutAlt
@@ -321,20 +398,59 @@ tilt = acosd(max(-1,min(1,1-2*(q(3)^2+q(4)^2))));
 fprintf('\n=== 再計画つき閉ループ ===\n');
 fprintf('接地 t=%.1fs 水平%.2fm 鉛直v%+.2fm/s |v|%.2f 傾斜%.2fdeg\n', ...
     t, hypot(xE(2),xE(3)), rdI(1), norm(rdI), tilt);
-fprintf('MPC %d回: QP平均%.1fms 収束率%.0f%%\n', numel(log.qpT), ...
-    mean(log.qpT)*1e3, 100*mean(strcmp(log.st,'converged')));
+if isfield(topt,'fastQP') && topt.fastQP
+    fixedIter = 300;
+    if isfield(topt,'fastIter'), fixedIter = topt.fastIter; end
+    okStatus = strcmp(log.st,'converged') | strcmp(log.st,'maxIter');
+    fprintf('MPC %d回: QP平均%.1fms 固定%d反復 異常率%.0f%%\n', numel(log.qpT), ...
+        mean(log.qpT)*1e3, fixedIter, 100*mean(~okStatus));
+else
+    fprintf('MPC %d回: QP平均%.1fms 収束率%.0f%%\n', numel(log.qpT), ...
+        mean(log.qpT)*1e3, 100*mean(strcmp(log.st,'converged')));
+end
 fprintf('再計画 %d回 (受入 %d): 1回あたり 平均%.0fms / 最大%.0fms\n', ...
     rp.n, rp.ok, mean(rp.time)*1e3, max(rp.time)*1e3);
 
 prmUsed = struct('thrEff',thrEff,'errTrig',errTrig,'dtR',dtR,'navJump',navJump, ...
                  'windY',windY,'windProf',windProf,'windScale',windScale, ...
-                 'ctlMode',ctlMode,'refSync',refSync);
-out = struct('log',log,'rp',rp,'xEnd',xE,'tEnd',t,'plan',plan,'prm',prmUsed);
+                 'ctlMode',ctlMode,'refSync',refSync,'suicideBurn',suicide, ...
+                 'suicideMargin',suicideMargin,'suicideVtd',suicideVtd, ...
+                 'suicideNomEff',suicideNomEff,'suicideRefBlend',suicideRefBlend, ...
+                 'suicideVelBlend',suicideVelBlend,'suicideAdvanceMax',suicideAdvanceMax);
+out = struct('log',log,'rp',rp,'xEnd',xE,'tEnd',t,'plan',plan,'prm',prmUsed, ...
+             'suicideBurn',sb);
 fprintf('条件: thrEff=%.2f windY=%.1f navJump=%.0fm errTrig=%s\n', ...
     thrEff, windY, navJump, num2str(errTrig));
 if gp('noSave',0), return; end          %% MCS並列時のファイル衝突回避
 save(fullfile(proj,'results','closedloop_replan.mat'),'-struct','out');
 fprintf('保存: results/closedloop_replan.mat\n');
+end
+
+
+function sb = initSuicideBurn(refD, cfg, tdAlt, thrEff, enabled, margin, vTd)
+%INITSUICIDEBURN  計画点火点から停止距離ディスパッチの基準を作る.
+sb = struct('enabled',false,'started',false,'advanced',false,'delayed',false, ...
+            'refShift',0,'tIgn',0,'hIgn',nan,'eng',0,'factor',1,'margin',margin, ...
+            'vTd',vTd,'tStart',nan,'hStart',nan);
+if ~enabled || isempty(refD.engSched), return; end
+iIgn = find(refD.engSched > 0, 1, 'first');
+if isempty(iIgn), return; end
+iState = min(iIgn, size(refD.xhat,2));
+xr = refD.xhat(:,iState);
+qr = xr(7:10)/norm(xr(7:10));
+vIr = quat2dcm(qr.').'*xr(4:6);
+vDown = max(-vIr(1)*cfg.sc.V, 0);
+hRem = max(xr(1)*cfg.sc.L - tdAlt, 0);
+mRef = xr(14)*cfg.m0;
+eng = refD.engSched(iIgn);
+aBrake = eng*cfg.Tmax1*cfg.Fs*thrEff/mRef - 9.80665;
+dStop = max(vDown^2 - vTd^2, 0)/(2*max(aBrake, eps));
+if hRem <= 0 || dStop <= eps || aBrake <= 0, return; end
+sb.enabled = true;
+sb.tIgn = refD.t(iIgn);
+sb.hIgn = xr(1)*cfg.sc.L;
+sb.eng = eng;
+sb.factor = hRem/dStop;
 end
 
 

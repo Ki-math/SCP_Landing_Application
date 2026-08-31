@@ -130,17 +130,25 @@ case 'falcon9'
     %% 通常パスの相対許容誤差1e-3は終端重み1e8の問題では絶対誤差として大きな
     %% 最適性の取り残しを許す (風10m/s時の終端残差 13.5m -> 0.1-1m, 実測).
     %% 反復配分 (SCP 15/8/10/8/4, 継続パスQP 2000) は品質と速度の両立点で
-    %% 計画 88秒 -> 55秒, 無風MCS 100% / 風10m/s MCS 95% (実測)
+    %% 計画反復配分は、終端精度を維持しつつ求解時間を抑える実測上の折衷点.
     prob.planFile = 'landing_falcon9.mat';
     prob.refSync = 'alt';           % 点火ディスパッチ: 参照を高度で引く
                                     % (ホバースラムのタイミング分散を吸収)
-    prob.velFB = 1.5;               % 鉛直速度FB [1/s]: v(h)プロファイルへの推力トリム
-                                    % (ホバー不能機のブレーキ不足を補償. ISA大気の
-                                    %  公称接地 -9.0 -> -7.7 m/s, 判定 vz<8 に収める)
+    prob.suicideBurn = true;         % 降下速度・質量・推力効率から停止距離を評価する
+                                    % 状態量ベースの点火ディスパッチ
+    prob.suicideMargin = 0.995;      % 計画点火点で校正した停止距離の安全倍率
+    prob.suicideVtd = 0;             % 停止距離計算上の目標鉛直速度 [m/s]
+    prob.suicideNomEff = 0.97;       % 停止距離校正時の公称推力効率
+    prob.suicideRefBlend = 0.45;     % 点火時刻補正をMPC参照全体へ反映する割合
+    prob.suicideVelBlend = 1.0;      % 同補正を鉛直速度FB参照へ反映する割合
+    prob.suicideAdvanceMax = 0;      % 計画点火から許す前倒し量 [s] (0=遅延補正のみ)
+    prob.velFB = 0.7;               % 鉛直速度FB [1/s]: v(h)プロファイルへの推力トリム
+                                    % (inner方式では強すぎると高所停止後の落下を招く)
     prob.velFBi = 0;                % 積分ゲイン [1/s^2]: 上げると鉛直は締まるが傾斜が
                                     % 悪化するトレードオフ (kI=8で-4.0m/s/13.6deg 実測)
-    prob.ctlModeForce = 'direct';   % falcon9 の方式2(inner)は未調整で発散 (実測) の
-                                    % ため方式1に固定. 内ループ調整後に解除
+    prob.ctlModeForce = 'inner';    % 誘導が姿勢コマンドを生成し, 姿勢内ループを介して追従
+    prob.wnAtt = 1.8;               % 姿勢内ループ帯域 [rad/s]
+    prob.ztAtt = 1.2;               % 姿勢内ループ減衰比
     prob.latFreezeAlt = 60;         % 着陸コミット高度 [m]: これ以下で横推力を姿勢レート
                                     % ダンピング専用に切替 (参照終端への最終追い込みが
                                     % 傾斜を蹴るのを防ぐ. 接地傾斜 14->5deg 実測)
@@ -175,6 +183,8 @@ if strcmp(prob.vehicle,'falcon9')
                                                  % (2500だと収束率53% -> 4000で99%)
     prob.track.fastIter = 600;                   % 固定反復数 (既定300では追従精度が
                                                  % 不足し風時に+9mの残差. 600で~27ms)
+    prob.track.wPos = 32;                        % inner方式で着地点への収束を強化
+    prob.track.wVel = 0.5;                       % 姿勢要求との競合を避け, 速度FBへ役割分担
     prob.track.wQuat = 2.5;                      % 姿勢追従を強め (傾斜ふらつき抑制)
     prob.track.wRate = 2.0;                      % 角速度減衰
     prob.track.rCtrl = 0.8;                      % 制御を滑らかに

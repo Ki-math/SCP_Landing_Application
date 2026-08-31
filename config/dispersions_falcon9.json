@@ -9,7 +9,8 @@
     "name": "windY",
     "dist": "normal3",
     "p1": 0.0,
-    "p2": 0.0
+    "p2": 0.25,
+    "_comment": "Equivalent lateral acceleration standard deviation [m/s^2], not wind speed [m/s]."
   },
   {
     "name": "dr0x",
@@ -21,13 +22,13 @@
     "name": "dr0y",
     "dist": "normal3",
     "p1": 0.0,
-    "p2": 50
+    "p2": 10
   },
   {
     "name": "dr0z",
     "dist": "normal3",
     "p1": 0.0,
-    "p2": 50
+    "p2": 10
   },
   {
     "name": "dvBx",
