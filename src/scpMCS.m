@@ -45,6 +45,7 @@ if isfield(prob,'refSync') && ~isfield(prm,'refSync'), prm.refSync = prob.refSyn
 if isfield(prob,'velFB') && ~isfield(prm,'velFB'), prm.velFB = prob.velFB; end
 if isfield(prob,'velFBi') && ~isfield(prm,'velFBi'), prm.velFBi = prob.velFBi; end
 if isfield(prob,'latFreezeAlt') && ~isfield(prm,'latFreezeAlt'), prm.latFreezeAlt = prob.latFreezeAlt; end
+if isfield(prob,'ctlMode') && ~isempty(prob.ctlMode) && ~isfield(prm,'ctlMode'), prm.ctlMode = prob.ctlMode; end
 if isfield(prob,'ctlModeForce') && ~isempty(prob.ctlModeForce) && ~isfield(prm,'ctlMode'), prm.ctlMode = prob.ctlModeForce; end
 if isfield(prob,'okCrit') && ~isfield(prm,'okCrit'), prm.okCrit = prob.okCrit; end
 if isfield(prob,'errTrig') && ~isfield(prm,'errTrig'), prm.errTrig = prob.errTrig; end

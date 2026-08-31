@@ -18,8 +18,8 @@ run(fullfile(fileparts(here),'setup.m'));
 DO.mcs     = true;      % 4. モンテカルロ (N_MCS ラン)
 DO.codegen = false;     % 5. 組み込みCコード生成 (初回は数分. 生成物があれば数秒)
 DO.anim    = true;     % 3b. 飛行アニメーション
-N_MCS      = 10;         % MCSラン数 (精度を見るなら 20-100)
-MCS_PAR    = false;     % MCS並列 (Parallel Computing Toolbox. 初回はプール起動30-60秒)
+N_MCS      = 100;         % MCSラン数 (精度を見るなら 20-100)
+MCS_PAR    = true;     % MCS並列 (Parallel Computing Toolbox. 初回はプール起動30-60秒)
 
 %% ============ 1. 問題設定 ============
 % scpProblem がテンプレート機体の「問題定義」一式を返す. 全フィールド編集可.
@@ -36,15 +36,18 @@ prob = scpProblem('falcon9');
 %     'hmin_m',15));                           % 脚接地時のCG高度 [m]
 
 % --- 初期条件を変える場合 (物理単位) ---
-% prob.x0(1) = 2500;      % 高度 [m]
-% prob.x0(3) = -60;       % ダウンレンジ [m] (パッド=0)
-% prob.x0(6) = 12;        % 水平速度 [m/s] (機体系z)
+prob.x0(1) = 2000;      % 高度 [m]
+prob.x0(3) = 0;       % ダウンレンジ [m] (パッド=0)
+prob.x0(6) = 0;        % 水平速度 [m/s] (機体系z)
 
 % --- 計画チューニングを変える場合 (代表例) ---
 % prob.opt.wFuel   = 25;              % 燃料重視度
 % prob.opt.wTilt   = 0.1;             % 傾斜正則化 (falcon9既定 0.1)
-% prob.opt.tol.pos = 2;               % 位置スケーリング [m] (小さい=位置を重視)
+prob.opt.tol.pos = 5;               % 位置スケーリング [m] (小さい=位置を重視)
 % prob.tiltN(:)    = deg2rad(8);      % 傾斜角スケジュール上限 [rad]
+
+% 風モデル
+prob.windProf = loadWindProfile('config/wind_shear_example.json');
 
 fprintf('--- 1. 問題設定: %s (質量 %.1f t, エンジン %d基) ---\n', ...
     prob.vehicle, prob.cfg.m0/1e3, prob.cfg.nEng);
@@ -72,6 +75,7 @@ fprintf('--- 2. 計画完了: tf=%.1fs 終端(高度%.1fm, 水平%.1fm) 燃料%.
 %   errTrig  オンライン再計画のトリガ誤差 [m] (inf=再計画なし)
 %   windProf 高度依存の風況プロファイル (prob.windProf =
 %            loadWindProfile('config/wind_shear_example.json') でも指定可)
+prob.ctlMode='inner';
 R = scpClosedLoop(prob, struct('thrEff',0.97, 'windY',0.2));
 
 plotClosedLoop(sol, R.log, cfg);        % 計画 vs 閉ループ の6面図

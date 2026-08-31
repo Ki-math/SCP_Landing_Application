@@ -18,7 +18,10 @@ if isfield(prob,'latFreezeAlt') && ~isfield(prm,'latFreezeAlt'), prm.latFreezeAl
 if isfield(prob,'errTrig') && ~isfield(prm,'errTrig'), prm.errTrig = prob.errTrig; end
 if isfield(prob,'windProf') && ~isfield(prm,'windProf'), prm.windProf = prob.windProf; end
 if isfield(prob,'cutoffAlt') && ~isfield(prm,'cutoffAlt'), prm.cutoffAlt = prob.cutoffAlt; end
-%% 機体既定の制御方式 (prm.ctlMode の明示指定が優先)
+%% 機体既定の制御方式 (優先度: prm.ctlMode > prob.ctlMode > prob.ctlModeForce)
+if isfield(prob,'ctlMode') && ~isempty(prob.ctlMode) && ~isfield(prm,'ctlMode')
+    prm.ctlMode = prob.ctlMode;          % ctlModeForce のエイリアス (書き間違い救済)
+end
 if isfield(prob,'ctlModeForce') && ~isempty(prob.ctlModeForce) && ~isfield(prm,'ctlMode')
     prm.ctlMode = prob.ctlModeForce;
 end
