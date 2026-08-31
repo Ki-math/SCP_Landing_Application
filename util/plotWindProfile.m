@@ -1,10 +1,19 @@
 function plotWindProfile(ax, wp)
 %PLOTWINDPROFILE  風況プロファイルの可視化 (風速 vs 高度).
 %
-%   PLOTWINDPROFILE(AX, WP)  座標軸 AX に描画. WP は loadWindProfile の出力
-%   (struct('h',...,'wy',...,'wz',...)). WP が空なら「無風」を表示する.
+%   PLOTWINDPROFILE(WP)      新規Figureに描画. WP は loadWindProfile の出力
+%                            (struct('h',...,'wy',...,'wz',...))
+%   PLOTWINDPROFILE(AX, WP)  既存の座標軸 AX に描画 (GUI統合用)
+%
+%   例:
+%     prob.windProf = loadWindProfile('config/wind_shear_example.json');
+%     plotWindProfile(prob.windProf)
 %
 %   See also LOADWINDPROFILE, SCPAPP
+if nargin < 2                             % plotWindProfile(wp) 形式
+    wp = ax;
+    ax = axes(figure('Color','w','Name','風況プロファイル'));
+end
 cla(ax, 'reset');                 % 前回の手動軸設定も含めて初期化 (自動スケールに戻す)
 if isempty(wp)
     text(ax, 0.5, 0.5, '風プロファイル未設定 (無風)', ...
