@@ -15,6 +15,16 @@ cfg = prob.cfg;
 %% 既知の風はフィードフォワードで織り込み, MCSの windScale 変動など残差は
 %% 閉ループのフィードバックが吸収する.
 if isfield(prob,'windProf') && ~isempty(prob.windProf)
+    %% 風況向けの機体制約緩和 (scpWindTune) を自動適用する. 既定の姿勢制約は
+    %% 無風テンプレート用に締めてあり, そのままだと風トリムも divert もできず
+    %% 計画残差が 10m 級で残る (実測: 50m オフセット時 40.8m -> 適用で 1.9m)
+    if ~(isfield(prob.opt,'autoWindTune') && ~prob.opt.autoWindTune)
+        wasTuned = isfield(prob,'windTuned') && prob.windTuned;
+        prob = scpWindTune(prob);
+        if ~wasTuned
+            fprintf('風況向け自動チューニング適用 (scpWindTune. prob.opt.autoWindTune=false で無効化)\n');
+        end
+    end
     wpz = prob.windProf;
     h8 = linspace(wpz.h(1), wpz.h(end), 8);
     for c = {'cfg','cfgPlan'}

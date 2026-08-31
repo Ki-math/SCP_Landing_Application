@@ -41,8 +41,15 @@ plan = struct('sol',S.sol, 'opt',S.opt, 'tiltN',tiltN, 'cfg',cfg, ...
 %% --- 外乱 (既定は runClosedLoop6 と同一) ---
 gp = @(f,d) getFieldDef(prm,f,d);
 thrEff  = gp('thrEff', 0.97);
-errTrig = gp('errTrig', 25);      % 追従位置誤差がこれを超えたら再計画 [m]
+errTrig = gp('errTrig', 25);      % 追従位置誤差がこれを超えたら再計画 [m] (燃焼中)
+errTrigC= gp('errTrigCoast', 30); % 同, コースト (点火前) 用の低いトリガ [m].
+                                  % コースト中の再計画は燃焼を乱すリスクがなく
+                                  % divert が最も安価なため, 感度を高くして
+                                  % 着陸点へ向かう軌道の引き直しを積極的に行う
 dtR     = gp('dtR', 1.0);
+reIters = gp('reIters', 4);       % 再計画のSCP反復数 (divert品質と計算時間の
+                                  % トレード. 2ではdivert残差20m級, 4で数m)
+engGuard= gp('engGuard', 1.5);    % 過制動ガードの速度しきい値 [m/s] (0で無効)
 navJump = gp('navJump', 0);       % t=8s の航法更新 (ダウンレンジ跳び) [m]
 windY   = gp('windY', 0.3);       % 横風加速度 [m/s^2] (簡易一定外乱. 旧来互換)
 windProf = gp('windProf', []);    % 風況プロファイル struct('h',[m],'wy',[m/s],'wz',[m/s])
@@ -119,6 +126,7 @@ log.t=[]; log.x=[]; log.u=[]; log.qpT=[]; log.st={};
 rp.n=0; rp.ok=0; rp.time=[]; rp.t=[];
 [hTab,tTab] = altTable(refD, sc);                   %% 高度→参照時刻 の逆引き表
 nStep = round(tEnd/dtP);  lastRe = -inf;  navDone = false;  cutDone = false;
+engCap = inf;                     %% 過制動ガードの基数ラッチ (engGuard 参照)
 for s = 0:nStep-1
     %% ログ (周期先頭の状態. 生成コード例 gnc_loop.h と同じ規約)
     if mod(s,10)==0, log.t(end+1)=t; log.x(:,end+1)=x.*sx; log.u(:,end+1)=u; end
@@ -145,10 +153,39 @@ for s = 0:nStep-1
     xrNow = interp1(refD.t, refD.xhat.', min(tp,refD.t(end)), 'linear', 'extrap').';
     posErr = norm(x(1:3) - xrNow(1:3))*sc.L;
     velErr = norm(x(4:6) - xrNow(4:6))*sc.V;
-    if t - lastRe >= dtR && engNow > 0 && x(1)*sc.L > tdAlt+reAltMin && ...
-       (posErr > errTrig || velErr > velTrig)
+    %% --- 過制動ガード (エンジン基数の状態量トリガ前倒し) ---
+    %% 参照より降下が遅い (制動しすぎ) のに複数基が最小推力床に張り付くと,
+    %% それ以上絞れず過制動が蓄積 -> 高所で停止 -> カットオフ落下になる.
+    %% スケジュール上この先で使う少ない基数へ前倒しで落とし, 推力床を下げて
+    %% 制動を緩める (実機の状態量トリガ式の基数シーケンスに相当)
+    if engGuard > 0 && engNow > 1
+        dvSlow = (x(4) - xrNow(4))*sc.V;            % +側 = 降下が参照より遅い
+        if dvSlow > engGuard
+            nE = numel(refD.engSched);
+            iF = find(refD.t(1:nE) >= tp & refD.engSched(:).' > 0);
+            if ~isempty(iF)
+                engNext = min(refD.engSched(iF));
+                %% 前倒しは「残り高度を次基数の最大推力で止まり切れる」場合のみ
+                %% (高高度で落とすと制動力不足で回復不能になる)
+                mNow  = x(14)*cfg.m0;
+                hRem  = max(x(1)*sc.L - tdAlt, 1);
+                vNow  = abs(x(4))*sc.V;
+                aNet1 = engNext*cfg.Tmax1*cfg.Fs/mNow - 9.81;
+                if engNext < engNow && vNow^2/(2*hRem) < 0.8*aNet1
+                    engCap = min(engCap, engNext);
+                end
+            end
+        end
+    end
+    engNow = min(engNow, engCap);                   % ラッチ (戻さない)
+    %% 再計画はコースト中 (点火前) も許可する. divert はコーストが最も安価かつ
+    %% 安全で, ここを塞ぐと大きな初期偏差が点火まで放置され「着陸点へ向かう
+    %% すり鉢」が形成されない (点火後は高度ゲートまで数秒しか窓がない)
+    trigNow = errTrig;  if engNow == 0, trigNow = min(errTrig, errTrigC); end
+    if t - lastRe >= dtR && x(1)*sc.L > tdAlt+reAltMin && ...
+       (posErr > trigNow || velErr > velTrig)
         lastRe = t;
-        [plan,okR,dbgR] = scpk.replan6(plan, x.*sx, tp, 2);
+        [plan,okR,dbgR] = scpk.replan6(plan, x.*sx, tp, reIters);
         rp.n = rp.n+1;  rp.ok = rp.ok+okR;  rp.time(end+1) = dbgR.time;  rp.t(end+1) = t;
         if okR
             refD = scpk.densify6(plan.sol, cfg, min(0.1, topt.dt/2));

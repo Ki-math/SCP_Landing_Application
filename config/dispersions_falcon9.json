@@ -9,7 +9,7 @@
     "name": "windY",
     "dist": "normal3",
     "p1": 0.0,
-    "p2": 0.25
+    "p2": 0.0
   },
   {
     "name": "dr0x",
@@ -21,13 +21,13 @@
     "name": "dr0y",
     "dist": "normal3",
     "p1": 0.0,
-    "p2": 5
+    "p2": 50
   },
   {
     "name": "dr0z",
     "dist": "normal3",
     "p1": 0.0,
-    "p2": 10
+    "p2": 50
   },
   {
     "name": "dvBx",

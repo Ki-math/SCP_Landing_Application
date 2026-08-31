@@ -17,7 +17,13 @@ function prob = scpWindTune(prob)
 %     prob = scpWindTune(prob);
 %     scpPlan(prob);  R = scpClosedLoop(prob, struct());
 %
+%   注: windProf 設定時は scpPlan / scpClosedLoop / scpMCS が本関数を自動適用
+%   する (prob.opt.autoWindTune=false で無効化). 手動適用しても二重適用は
+%   windTuned フラグで防止される.
+%
 %   See also SCPPROBLEM, SCPPLAN, LOADWINDPROFILE
+if isfield(prob,'windTuned') && prob.windTuned, return; end
+prob.windTuned = true;
 prob.opt.wMaxFlip  = max(prob.opt.wMaxFlip,  deg2rad(15));
 prob.opt.wMaxTight = max(prob.opt.wMaxTight, deg2rad(8));
 i4 = find(prob.phase == 4);

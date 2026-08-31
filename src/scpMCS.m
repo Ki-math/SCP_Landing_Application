@@ -38,6 +38,11 @@ if nargin < 4, prm = struct(); end
 seed = 1;
 if isfield(prm,'seed'), seed = prm.seed; prm = rmfield(prm,'seed'); end
 
+%% 風況設定時は scpWindTune を自動適用 (scpPlan と同じ. 追従重みを揃える)
+if isfield(prob,'windProf') && ~isempty(prob.windProf) && ...
+   ~(isfield(prob.opt,'autoWindTune') && ~prob.opt.autoWindTune)
+    prob = scpWindTune(prob);
+end
 %% prob の閉ループ設定を引き継ぐ (scpClosedLoop と同じ写像)
 prm.planFile = prob.planFile;
 prm.trackOpt = prob.track;

@@ -105,13 +105,18 @@ fprintf('成功率: %.0f%%\n', 100*mean([res.ok]));
 fprintf('水平誤差 : 平均%.1f / 最大%.1f m\n', mean(h,'omitnan'), max(h));
 fprintf('接地速度 : 平均%.2f / 最大%.2f m/s\n', mean(v,'omitnan'), max(v));
 fprintf('傾斜     : 平均%.1f / 最大%.1f deg\n', mean(tl,'omitnan'), max(tl));
+fu = [res.fuel];
+fprintf('残燃料   : 平均%.2f / 最小%.2f t\n', mean(fu,'omitnan'), min(fu));
 
 if ~(isfield(prm0,'noPlot') && prm0.noPlot)
-    figure('Color','w','Name','MCS: SCP着陸','Position',[60 60 1250 520]);
-    subplot(1,3,1); plotMcsBirdseye(gca, res); title('飛行軌道 (鳥瞰)');
-    subplot(1,3,2); scatter(h, v, 40, tl, 'filled'); colorbar; grid on;
+    figure('Color','w','Name','MCS: SCP着陸','Position',[40 60 1500 520]);
+    subplot(1,4,1); plotMcsBirdseye(gca, res); title('飛行軌道 (鳥瞰)');
+    subplot(1,4,2); scatter(h, v, 40, tl, 'filled'); colorbar; grid on;
     xlabel('水平誤差 [m]'); ylabel('接地速度 [m/s]'); title('着陸精度 (色=傾斜deg)');
-    subplot(1,3,3); histogram(h, 12); grid on; xlabel('水平誤差 [m]'); ylabel('ラン数');
+    subplot(1,4,3); histogram(h, 12); grid on; xlabel('水平誤差 [m]'); ylabel('ラン数');
+    subplot(1,4,4); histogram(fu, 12); grid on;
+    xlabel('残燃料 [t]'); ylabel('ラン数');
+    title(sprintf('残燃料 (平均%.2f / 最小%.2f t)', mean(fu,'omitnan'), min(fu)));
 end
 
 out = struct('res',res,'X',X,'spec',{spec},'N',N);
@@ -142,7 +147,9 @@ try
     r.vTd   = norm(rdI);
     r.tilt  = acosd(max(-1,min(1,1-2*(q(3)^2+q(4)^2))));
     r.tEnd  = R.tEnd;
-    r.fuel  = (R.plan.cfg.m0 - xE(14))/1e3;
+    dmPl = R.plan.cfg.veh.dryMass;              % プラント側乾燥質量 (変動があれば反映)
+    if isfield(prm,'vehOv') && isfield(prm.vehOv,'dryMass'), dmPl = prm.vehOv.dryMass; end
+    r.fuel  = (xE(14) - dmPl)/1e3;              % 残燃料 [t]
     r.nRe   = R.rp.n;
     r.ok    = r.horiz < okc.horiz && r.vTd < okc.vz && r.tilt < okc.tilt;
     r.traj  = R.log.x(1:3, 1:3:end);        % 鳥瞰図用の軌道 [高度;クロス;ダウンレンジ]

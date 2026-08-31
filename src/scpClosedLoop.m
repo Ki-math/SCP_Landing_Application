@@ -9,6 +9,11 @@ function R = scpClosedLoop(prob, prm)
 src = fileparts(mfilename('fullpath'));  proj = fileparts(src);
 addpath(src, fullfile(src,'cpp'), fullfile(proj,'util'));
 if nargin < 2, prm = struct(); end
+%% 風況設定時は scpWindTune を自動適用 (scpPlan と同じ. 追従重みを揃える)
+if isfield(prob,'windProf') && ~isempty(prob.windProf) && ...
+   ~(isfield(prob.opt,'autoWindTune') && ~prob.opt.autoWindTune)
+    prob = scpWindTune(prob);
+end
 prm.planFile = prob.planFile;
 prm.trackOpt = prob.track;
 if isfield(prob,'refSync') && ~isfield(prm,'refSync'), prm.refSync = prob.refSync; end

@@ -70,6 +70,15 @@ for k = 1:N
     if isfield(opt,'thrMaxTight') && opt.phase(k) >= opt.phaseTight
         Tmax(k) = min(Tmax(k), eng(k)*cfg.Tmax1*opt.thrMaxTight);
     end
+    %% 推力下限のマージン (再計画用). 参照が物理的な最小スロットルに張り付くと
+    %% 追従側に「絞る」余地がなくなり, 推力効率+側の変動で系統的に過制動 ->
+    %% 高所停止 -> カットオフ落下になる. 下限を数%上げた参照を作ることで
+    %% 追従に両方向のスロットル余裕を残す (ロバストMPCの制約タイトニング)
+    %% (適用は全動力ノード: 3基フェーズの中盤ブレーキも最小スロットルに張り
+    %% 付くと, エンジン基数切替タイミングの誤差が過制動として蓄積し回復不能)
+    if isfield(opt,'thrMinUp') && eng(k) > 0
+        Tmin(k) = min(max(Tmin(k), eng(k)*cfg.Tmin1*opt.thrMinUp), Tmax(k));
+    end
 end
 %% 線形化+離散化 (ホットループ). C生成版 linDisc6All_mex があれば自動使用.
 if exist('linDisc6All_mex','file') == 3
