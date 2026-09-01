@@ -8,7 +8,7 @@ function scpApp()
 %   See also SCPPROBLEM, SCPPLAN, SCPCLOSEDLOOP, RUNMCS_SCP, SCPCODEGENZIP
 src = fileparts(mfilename('fullpath'));  proj = fileparts(src);
 addpath(src, fullfile(src,'cpp'), fullfile(proj,'util'), ...
-        fullfile(proj,'util','legacy'), fullfile(proj,'config'));
+        fullfile(proj,'config'));
 
 fig = uifigure('Name','SCP着陸解析ツール','Position',[40 40 1380 800]);
 gm = uigridlayout(fig,[1 2],'ColumnWidth',{460,'1x'},'Padding',[8 8 8 8]);
