@@ -26,21 +26,21 @@ Reusable Orbital Rockets*, Int. J. Aeronaut. Space Sci. 26:1890 (2025)。
 
 状態と制御（`src/+scpk/dynamics6.m`）:
 
-$$
+```math
 x = \begin{bmatrix} r_I \\ v_B \\ q \\ \omega_B \\ \hat m \end{bmatrix} \in \mathbb{R}^{14},
 \qquad
 u = \begin{bmatrix} T_B \\ \delta \end{bmatrix} \in \mathbb{R}^{7}
-$$
+```
 
-- $r_I = [h;\,y;\,z]$ : 慣性系位置（**高度・クロスレンジ・ダウンレンジ**の順）
+- $`r_I = [h;\,y;\,z]`$ : 慣性系位置（**高度・クロスレンジ・ダウンレンジ**の順）
 - $v_B$ : **機体系**速度
-- $q = [q_0;q_1;q_2;q_3]$ : 四元数（スカラー先頭）。$R(q)$ は慣性→機体
-- $\omega_B$ : 機体系角速度、$\hat m = m/m_0$ : 正規化質量
-- $T_B$ : 機体系推力ベクトル、$\delta \in \mathbb{R}^4$ : 舵面舵角（トリムからの偏差）
+- $q = [q_0;q_1;q_2;q_3]$ : 四元数（スカラー先頭）。$`R(q)`$ は慣性→機体
+- $\omega_B$ : 機体系角速度、$`\hat m = m/m_0`$ : 正規化質量
+- $T_B$ : 機体系推力ベクトル、$`\delta \in \mathbb{R}^4`$ : 舵面舵角（トリムからの偏差）
 
 運動方程式:
 
-$$
+```math
 \begin{aligned}
 \dot r_I &= R(q)^{\top} v_B \\
 \dot v_B &= \frac{T_B + F_{a,B}(v_B,\delta)}{\hat m} - \omega_B \times v_B + R(q)\, g_I \\
@@ -48,18 +48,18 @@ $$
 \dot \omega_B &= J^{-1}\left( r_T \times T_B - \omega_B \times J\omega_B \right) + B_{\rm surf}\,\delta \cdot q_s(v_B) \\
 \dot{\hat m} &= -\alpha \lVert T_B \rVert
 \end{aligned}
-$$
+```
 
 特記事項:
 
-- **空力は成分抗力モデル**: $F_a = -[c_x V v_x;\; c_y V v_y;\; c_z V v_z]$
-  （$V=\lVert v_B\rVert$）。$c_x \ne c_y$ のため合力は速度と平行にならず、その
+- **空力は成分抗力モデル**: $`F_a = -[c_x V v_x;\; c_y V v_y;\; c_z V v_z]`$
+  （$`V=\lVert v_B\rVert`$）。$`c_x \ne c_y`$ のため合力は速度と平行にならず、その
   垂直成分が揚力として働く（腹ばい姿勢で L/D ≈ 0.25）。係数は代表面積×抗力係数
   ×補正係数（`aeroScale`）で与え、すべてユーザー指定可能。
 - **大気は既定で ISA 標準大気**: 空力項全体に密度比
   $f_\rho = \rho_{\rm ISA}(h_{\rm pad}+h)/\rho_{\rm ref}$ が乗る
   （対流圏 0–11 km、`atmIsa=0` で一定密度）。プラント側では風況プロファイル
-  $w(h)$ を与えると空力が**対気相対速度** $v_B - R\,w_I$ で評価される
+  $w(h)$ を与えると空力が**対気相対速度** $`v_B - R\,w_I`$ で評価される
   （計画・MPC は無風前提で、風はフィードバックと再計画が吸収する）。
 - **舵面の効き $B_{\rm surf}$ は角加速度として与える**（同定値をそのまま使うため、
   モーメントとして $J^{-1}$ を通さない）。動圧相当の係数
@@ -88,9 +88,9 @@ $$
 フェーズ $j$ の正規化時刻 $\tau\in[0,1]$ で $x' = \sigma_j f(x,u)$ と書き、
 $\sigma_j$（フェーズ飛行時間）を**追加の制御入力**として扱う。線形化:
 
-$$
+```math
 x' \approx \bar\sigma_j (A x + B u) + f(\bar x,\bar u)\,\sigma_j + c
-$$
+```
 
 つまり $B$ 行列に列 $f$ を足すだけで既存の離散化がそのまま使える（論文 Eq.39–43）。
 
@@ -102,12 +102,12 @@ $$
 
 ### 2.3 凸部分問題（1回の SCvx 反復で解く QP）
 
-決定変数 $z = \{x_{0:N},\ u_{0:N-1},\ \Gamma_{0:N-1},\ \nu^{\pm},\ \sigma,\ e^{\pm},\ s_{\rm gs}\}$
+決定変数 $`z = \{x_{0:N},\ u_{0:N-1},\ \Gamma_{0:N-1},\ \nu^{\pm},\ \sigma,\ e^{\pm},\ s_{\rm gs}\}`$
 （すべて**許容誤差で無次元化**、§2.4）:
 
-$$
+```math
 \min_z\; -w_{\rm fuel}\, \hat m_N \;+\; w_{\rm tilt}\lVert q_{3,4}\rVert^2 \;+\; \lambda_{\rm VC}\,\mathbf{1}^{\top}(\nu^+ + \nu^-) \;+\; \lambda_{\rm term}\,\mathbf{1}^{\top}(e^+ + e^-) \;+\; \lambda_{\rm gs}\,\mathbf{1}^{\top}s_{\rm gs} \;+\; \epsilon\lVert z\rVert^2
-$$
+```
 
 **記号の意味**（右列は対応する `prob.opt` のパラメータ名）:
 
@@ -124,7 +124,7 @@ $$
 | $q_{3,4}$ | 四元数の傾斜成分（傾斜正則化の対象、直立想定ノードのみ） | `wTilt` |
 | $\epsilon\lVert z\rVert^2$ | 全変数の微小な2次正則化（数値安定化） | `reg` |
 
-コストの各項は「燃料最小化」＋「制約違反（$\nu, e, s_{\rm gs}$）への罰則」で構成され、
+コストの各項は「燃料最小化」＋「制約違反（$`\nu, e, s_{\rm gs}`$）への罰則」で構成され、
 罰則の強さ $\lambda_*$ は $\lambda_{\rm VC}$（動力学）＞ $\lambda_{\rm term}$（終端）＞
 $\lambda_{\rm gs}$（経路）の序列を保つのが基本（§8）。
 
@@ -136,9 +136,9 @@ $\lambda_{\rm gs}$（経路）の序列を保つのが基本（§8）。
 - **初期条件**: $x_0 = x_{\rm init}$（等式）
 - **終端条件**（12成分: 位置3・速度3・四元数ベクトル部3・角速度3）:
   スラック変数 $e^\pm \ge 0$ 付きの等式（L1ペナルティ）
-- **推力**: 大きさ $\Gamma_k \in [N_E T_{\min},\, N_E T_{\max}]$（上下限）、
+- **推力**: 大きさ $`\Gamma_k \in [N_E T_{\min},\, N_E T_{\max}]`$（上下限）、
   推力方向コーン（25面の多面体近似）、ジンバル角コーン
-  $T_x \ge \cos\delta_{\max}\Gamma$、$\lVert T\rVert=\Gamma$ の線形化
+  $T_x \ge \cos\delta_{\max}\Gamma$、$`\lVert T\rVert=\Gamma`$ の線形化
   $|e_T^{\top}T - \Gamma| \le \varepsilon_{\rm lc}$
 - **傾斜角スケジュール**（ハード制約・全ノード）:
   $\lVert (q_2,q_3) \rVert \le \sqrt{(1-\cos\eta_{\max,k})/2}$ を八角形で近似。
@@ -153,11 +153,11 @@ $\lambda_{\rm gs}$（経路）の序列を保つのが基本（§8）。
 - **行き過ぎ防止**: ダウンレンジ・クロスレンジの許容範囲（`drBox` / `crMax`）
 - **角速度**: フェーズ依存の上下限（転回中と終盤で別の上限）
 - **アクチュエータレート**: ノード間の制御変化率を制限。舵面
-  $|\Delta\delta| \le \dot\delta_{\max}\,\Delta t$、推力方向（小角近似）
-  $|\Delta T_{2,3}| \le N_E T_{\max,1}\,\dot\delta_{\rm tvc}\,\Delta t$。
+  $`|\Delta\delta| \le \dot\delta_{\max}\,\Delta t`$、推力方向（小角近似）
+  $`|\Delta T_{2,3}| \le N_E T_{\max,1}\,\dot\delta_{\rm tvc}\,\Delta t`$。
   点火基数が変わるノード境界は対象外（点火・カットオフの不連続は許す）
 - **ベリー姿勢保持**（Starship フェーズ1）: 四元数を腹ばい姿勢の近傍に保つ上下限制約
-- **信頼領域（上下限方式）**: $|z - z^{(i)}| \le \rho_{\rm TR}\cdot 0.93^{\,i}$。
+- **信頼領域（上下限方式）**: $`|z - z^{(i)}| \le \rho_{\rm TR}\cdot 0.93^{\,i}`$。
   上下限制約なので PIPG では追加コストなしに扱える。ペナルティ方式と異なり
   「1反復でどれだけ動いてよいか」が陽に決まるため、線形化が粗い領域でも
   解が飛ばない。反復ごとに収縮させる
@@ -165,9 +165,9 @@ $\lambda_{\rm gs}$（経路）の序列を保つのが基本（§8）。
 ### 2.4 スケーリング（数値条件の要）
 
 各変数を「1単位ずれたら同じくらい困る」許容誤差で割った座標で解く:
-位置 5 m、速度 0.5 m/s、四元数 0.005、角速度 2°/s、推力 20 kN、$\sigma$ 1 s（既定値）。
+位置 5 m、速度 0.5 m/s、四元数 0.005、角速度 2°/s、推力 20 kN、$`\sigma`$ 1 s（既定値）。
 これで目的関数の Hessian がほぼ単位行列となり条件数が健全に保たれる。
-ペナルティ係数の意味はスケール座標で決まる点に注意（$\lambda_{\rm VC}=10^6$ 程度）。
+ペナルティ係数の意味はスケール座標で決まる点に注意（$`\lambda_{\rm VC}=10^6`$ 程度）。
 
 ### 2.5 SCvx 反復
 
@@ -183,22 +183,22 @@ $\lambda_{\rm gs}$（経路）の序列を保つのが基本（§8）。
 
 ## 3. 追従MPC（100 ms 周期・LTV・RTI）
 
-`src/+scpk/track6Step.m`。**固定終端時刻**（時間変数なし）。参照 $x^*(t), u^*(t)$ は
+`src/+scpk/track6Step.m`。**固定終端時刻**（時間変数なし）。参照 $`x^*(t), u^*(t)`$ は
 計画解を**セグメント毎に RK4 再積分して高密度化**したもの（粗い節点の線形補間は
 0.1 s スケールでは力学との不整合が大きく、追従目標として不適）。
 
 ### 3.1 問題
 
-偏差 $\delta x = x - x^*(t_k)$, $\delta u = u - u^*(t_k)$（許容誤差スケール済み）に
+偏差 $`\delta x = x - x^*(t_k)`$, $`\delta u = u - u^*(t_k)`$（許容誤差スケール済み）に
 対し、ホライズン $H=25$・刻み $\Delta t = 0.2$ s:
 
-$$
+```math
 \min_{\delta u}\; \sum_{k=1}^{H} \delta x_k^{\top} Q\, \delta x_k + \rho \sum_{k=0}^{H-1} \lVert \delta u_k \rVert^2 + \delta x_H^{\top} (w_F Q)\, \delta x_H
-$$
+```
 
-$$
+```math
 \text{s.t.}\quad \delta x_{k+1} = A_{d,k}\,\delta x_k + B_{d,k}\,\delta u_k + d_k,\qquad \delta x_0 = x_{\rm now} - x^*(t_0)
-$$
+```
 
 - $A_{d,k}, B_{d,k}$: 参照点での線形化＋ZOH離散化（LTV-MPC）
 - 予測時間は $H\Delta t = 5$ s。位置は姿勢を経由した二重積分応答のため、
@@ -258,22 +258,22 @@ $u_0 = u^*(t_0) + \delta u_0$ を 100 ms 印加する。
 
 問題形式:
 
-$$
+```math
 \min_z\ \tfrac12 z^{\top}Pz + q^{\top}z \quad \text{s.t.}\quad Gz = g,\quad Az \le b,\quad l \le z \le u
-$$
+```
 
 反復（PDHG系・外挿 $\rho=1.7$）:
 
-$$
+```math
 \begin{aligned}
 z^{+} &= \Pi_{[l,u]}\!\left( \bar z - \alpha (P\bar z + q + C^{\top}\bar w) \right), \qquad C = [G;A] \\
 w^{+} &= \Pi\!\left( \bar w + \beta\, (C(2z^{+}-\bar z) - d) \right) \quad (\text{不等式行のみ } \ge 0)\\
 \bar z &\leftarrow (1-\rho)\bar z + \rho z^{+}, \qquad \bar w \leftarrow (1-\rho)\bar w + \rho w^{+}
 \end{aligned}
-$$
+```
 
 ステップ幅: $\alpha = 2/(\lambda + \sqrt{\lambda^2 + 4\omega\varsigma})$,
-$\beta = \omega\alpha$（$\lambda \approx \lVert P\rVert$,
+$\beta = \omega\alpha$（$`\lambda \approx \lVert P\rVert`$,
 $\varsigma \approx \lVert C\rVert^2$ をべき乗法で推定）。
 
 設計上の要点:
