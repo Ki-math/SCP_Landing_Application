@@ -610,8 +610,180 @@ MCSの機体諸元変動（§6）もこの表の名前を使います。
 | `hmin_m` | 31 / 18 | 脚接地時のCG高度 [m]（計画の終端高度） |
 | `wMaxDeg` | 30 | 角速度上限 [deg/s] |
 
-制御デバイスの種別は `cfg.surfMode`（1=ベリーフラップ（腹ばい降下用の胴体フラップ, 迎角依存） / 2=グリッドフィン（軸流でも有効））。力学そのものを差し替える場合は `[f,A,B]=dyn(x,u,cfg)` の同一シグネチャで
-`scpk.dynamics6` を置き換えます（CasADi生成関数もこの形式で接続）。
+制御デバイスの種別は `cfg.surfMode`（1=ベリーフラップ（腹ばい降下用の胴体フラップ,
+迎角依存） / 2=グリッドフィン（軸流でも有効））です。
+
+### カスタムダイナミクスの指定ワークフロー
+
+#### まず「諸元変更」か「力学式の変更」かを判断する
+
+質量、慣性、推力、空力係数、推力作用点、舵面効きなどを変更するだけなら、
+`dynamics6` は編集せず、`scpProblem(vehicle, ov)` の `ov` で指定してください。
+これが通常のカスタム機体作成方法です。
+
+```matlab
+ov = struct( ...
+    'dryMass',      30e3, ...
+    'landingProp',   9e3, ...
+    'thrustPerEng', 900e3, ...
+    'Isp',             290, ...
+    'Iyy',            5e6, ...
+    'CdAx',            0.9);
+
+prob = scpProblem('falcon9', ov);
+sol = scpPlan(prob);
+R = scpClosedLoop(prob, struct());
+```
+
+運動方程式、空力モデル、追加の力・モーメントなど、**式そのものを変更する場合**
+に限り、以下の手順で `src/+scpk/dynamics6.m` を変更します。
+
+#### 現在の差し替え方式と対応範囲
+
+現状は `prob.dynamicsFcn` のような関数ハンドルを渡すプラグイン方式ではありません。
+計画、追従MPC、参照軌道の高密度化、再計画、閉ループプラントが共通で呼び出す
+`scpk.dynamics6` の実装を差し替える方式です。
+
+周辺のQP構築と制約は次の構成を前提としています。
+
+| 項目 | 固定されている構成 |
+|---|---|
+| 状態 `x` | 14×1: `[r_I(3); v_B(3); q(4); omega_B(3); mhat]` |
+| 制御 `u` | 7×1: `[T_B(3); delta(4)]` |
+| 状態微分 `f` | 14×1 |
+| 状態ヤコビアン `A` | 14×14 |
+| 制御ヤコビアン `B` | 14×7 |
+| 四元数 | スカラー先頭。`R(q)` は慣性系→機体系 |
+| 内部単位 | `cfg.sc` で無次元化された値 |
+
+したがって、同じ状態・制御の並びを保ったまま力やモーメントの式を変更する用途が
+対象です。状態数、制御数、状態の並びを変える場合は、スケーリング、制約、QP組立、
+参照補間、可視化、コード生成インターフェースも合わせて改修する必要があります。
+
+#### 実装する関数
+
+実際のシグネチャは、風入力を含む次の形式です。
+
+```matlab
+function [f,A,B] = dynamics6(x,u,cfg,wB)
+```
+
+`wB` は無次元の機体系風速です。省略時または `NaN(3,1)` の場合は、
+`cfg.wOn` と `cfg.wTab*` に格納された公称風テーブルを使用します。閉ループ
+プラントは実際の風を `wB` として明示的に渡します。カスタムモデルでもこの規約を
+維持すると、§6の風況プロファイルを計画・MPC・プラントへ一貫して反映できます。
+
+実装の基本形:
+
+```matlab
+function [f,A,B] = dynamics6(x,u,cfg,wB)
+
+if nargin < 4
+    wB = nan(3,1);
+end
+
+f = customDynamicsCore(x,u,cfg,wB);
+
+if nargout > 1
+    nx = 14;
+    nu = 7;
+    h = cfg.jacStep;
+    A = zeros(nx,nx);
+    B = zeros(nx,nu);
+
+    for i = 1:nx
+        dx = zeros(nx,1);
+        dx(i) = h;
+        A(:,i) = (customDynamicsCore(x+dx,u,cfg,wB) ...
+                 -customDynamicsCore(x-dx,u,cfg,wB))/(2*h);
+    end
+
+    for i = 1:nu
+        du = zeros(nu,1);
+        du(i) = h;
+        B(:,i) = (customDynamicsCore(x,u+du,cfg,wB) ...
+                 -customDynamicsCore(x,u-du,cfg,wB))/(2*h);
+    end
+end
+end
+```
+
+上の例は `customDynamicsCore` を `dynamics6.m` 内のローカル関数として定義する
+想定です。別ファイル `src/+scpk/customDynamicsCore.m` に分離する場合は、
+`scpk.customDynamicsCore(...)` として呼び出します。解析ヤコビアンやCasADi等で
+生成したヤコビアンがある場合は、
+中心差分部分を置き換え、同じサイズの `f`, `A`, `B` を返してください。ただし、
+組み込みC/MEXも生成する場合、呼び出すコードはMATLAB Coderに対応している必要が
+あります。外部生成コードを使う場合は、単なる関数ハンドル指定ではなく、
+Coder用ラッパーまたは外部Cコード連携も構成します。
+
+#### `cfg` にパラメータを追加する場合
+
+新しいモデル定数は `cfg` に追加できます。その場合は `model6.m` と
+`modelFalcon9.m` が返す構造体の**フィールド構成と順序を一致**させてください。
+MATLAB Coderで生成するMEXは構造体レイアウトに厳密なため、一方の機体だけに
+フィールドを追加すると生成物を共用できません。
+
+GUIや `scpProblem(..., ov)` から新しい値を指定可能にするには、さらに
+`model6` / `modelFalcon9` の `ov` 処理、必要に応じてGUIとJSONの入出力にも
+同名フィールドを追加します。
+
+#### MEXと組み込みコードを再生成する
+
+計画と追従MPCは、生成済みの `linDisc6All_mex` が存在するとMATLAB版より優先して
+使用します。**`dynamics6.m` の式だけを変更しても、`scpCheckMex` はソースの変更を
+自動検出しません**。古い力学がMEX内に残らないよう、必ず手動で再生成してください。
+
+```matlab
+setup
+codegenBuild       % 線形化・離散化MEXを再生成
+codegenPlanIter    % 組み込み計画・追従MPCのMEX/Cを再生成
+```
+
+`cfg` のフィールド構成を変更した場合は `scpCheckMex` でも不整合を検出できますが、
+力学式だけの変更では検出できないため、上記2コマンドを明示的に実行します。
+組み込みパッケージまで更新する場合は、その後に `scpCodegenZip(true)` を実行します。
+
+#### 動作確認
+
+まず単点でサイズと有限性を確認し、その後に計画・閉ループ・MCSの順で確認します。
+
+```matlab
+setup
+prob = scpProblem('falcon9');
+
+% prob.x0 は物理単位、dynamics6 の直接入力は無次元
+sc = prob.cfg.sc;
+sx = [repmat(sc.L,3,1); repmat(sc.V,3,1); ones(4,1); ...
+      repmat(1/sc.T,3,1); prob.cfg.m0];
+x = prob.x0./sx;
+u = zeros(7,1);
+[f,A,B] = scpk.dynamics6(x,u,prob.cfg);
+
+assert(isequal(size(f),[14 1]) && all(isfinite(f)));
+assert(isequal(size(A),[14 14]) && all(isfinite(A(:))));
+assert(isequal(size(B),[14 7]) && all(isfinite(B(:))));
+
+sol = scpPlan(prob);
+assert(sol.virtCtrl < 1e-3);       % 線形化動力学が収束していること
+
+R = scpClosedLoop(prob, struct());
+mcs = scpMCS(prob, 'config/dispersions_falcon9.json', 20);
+```
+
+確認項目は、ヤコビアンと数値差分の一致、`sol.virtCtrl`、終端残差、閉ループの
+追従性、MCS成功率です。生成Cも使用する場合は `verifyEmbedded` でMATLAB参照実装との
+等価性を確認してください。
+
+#### 計画モデルとプラントモデルを別にしたい場合
+
+通常は同じ `scpk.dynamics6` を計画・追従MPC・プラントで共有します。モデル誤差の
+評価では、§6のMCS機体諸元変動を使うと、プラント側の `cfg` だけを変えて制御器を
+公称モデルのまま維持できます。
+
+力学式そのものをプラント側だけ別実装にする関数ハンドル指定は、現状の公開APIには
+ありません。その用途では `util/runClosedLoopReplan.m` の `plantDyn` 呼び出し経路を
+別途拡張する必要があります。
 
 ---
 
