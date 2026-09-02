@@ -5,8 +5,9 @@ function animateVehicleAx(ax, t, X, U, cfg, opt)
 %   AX  : 描画先 axes (uiaxes 可)
 %   T   : 1xN 時刻, X : 14xN 状態(物理), U : 7xN 制御(無次元)
 %   OPT : style ('starship'|'falcon9'), speed, fps, vehScale, legDeployAlt,
-%         orbit, pace, saveGif, gifFile
+%         orbit, pace, saveGif, gifFile, closeAx
 %         vehScale=1 と orbit=false が既定 (実寸比・固定ビュー).
+%         closeAx に第2 axes を渡すと、全体表示と同期した機体追従表示を描く.
 %
 %   別ウィンドウを開かず AX に直接描画する. 尾部アンカー方式 (接地整合).
 %
@@ -22,6 +23,8 @@ orbit = gv('orbit',false);
 paceOn = gv('pace',true);
 saveGif = gv('saveGif',false);
 gifFile = gv('gifFile','landing.gif');
+closeAx = gv('closeAx',[]);
+closeOn = ~isempty(closeAx) && isgraphics(closeAx);
 
 N = numel(t);
 if size(U,2) < N, U = [U, repmat(U(:,end),1,N-size(U,2))]; end
@@ -50,8 +53,9 @@ a0 = linspace(0,2*pi,40);
 plot3(ax, 20*cos(a0), 20*sin(a0), zeros(size(a0)), '-','Color',[0.1 0.5 0.3],'LineWidth',2);
 plot3(ax, y, zeros(1,N), h, '-','Color',[0.75 0.78 0.82],'LineWidth',1.2);
 hTrail = plot3(ax,NaN,NaN,NaN,'-','Color',[0.85 0.35 0.19],'LineWidth',2.2);
+set(hTrail,'Tag','animationTrail');
 
-hT = hgtransform('Parent',ax);
+hT = hgtransform('Parent',ax,'Tag','animationVehicle');
 nC = 20;
 [cx2,cy2,cz2] = cylinder(Rb*ones(1,2), nC);
 surface('Parent',hT,'XData',-Lb/2 + cz2*Lb*(1-0.14*~isF9),'YData',cy2,'ZData',cx2, ...
@@ -93,10 +97,31 @@ lighting(ax,'gouraud');  material(ax,'dull');
 legLen = Lb*0.18;  dAx = 0.35;  dRad = 1.10;
 legDrop = legLen*dAx/norm([dAx dRad]);
 hLegs = plot3(ax,NaN,NaN,NaN,'-','Color',[0.25 0.25 0.3],'LineWidth',1.2);
+set(hLegs,'Tag','animationLegs');
 [px,py,pz] = cylinder([0.12 0.7], 14);
 hPlume = surface('Parent',hT,'XData',zeros(size(pz)),'YData',Rb*px,'ZData',Rb*py, ...
-                 'FaceColor',[0.98 0.7 0.2],'EdgeColor','none','FaceAlpha',0.85);
-hTxt = text(ax, xr(1)+15, 0, zr(2)-25, '', 'FontSize',10, 'BackgroundColor','w');
+                 'FaceColor',[0.98 0.7 0.2],'EdgeColor','none','FaceAlpha',0.85, ...
+                 'Tag','animationPlume');
+hTxt = text(ax, 0.02, 0.98, 0, '', 'Units','normalized', ...
+            'VerticalAlignment','top','FontSize',10,'BackgroundColor','w', ...
+            'Tag','animationText');
+
+%% 第2軸は全体シーンを複製し、カメラ範囲だけを毎フレーム機体へ追従させる.
+hTClose = gobjects(0);  hLegsClose = gobjects(0);  hPlumeClose = gobjects(0);
+hTrailClose = gobjects(0);  hTxtClose = gobjects(0);
+if closeOn
+    cla(closeAx);  hold(closeAx,'on');  grid(closeAx,'on');  box(closeAx,'on');
+    axis(closeAx,'equal');  view(closeAx,[-32 14]);  camproj(closeAx,'perspective');
+    xlabel(closeAx,'ダウンレンジ [m]'); zlabel(closeAx,'高度 [m]');
+    copyobj(ax.Children,closeAx);
+    hTClose = findobj(closeAx,'Tag','animationVehicle');
+    hLegsClose = findobj(closeAx,'Tag','animationLegs');
+    hPlumeClose = findobj(closeAx,'Tag','animationPlume');
+    hTrailClose = findobj(closeAx,'Tag','animationTrail');
+    hTxtClose = findobj(closeAx,'Tag','animationText');
+    title(closeAx,'機体追従');
+end
+title(ax,'全体表示');
 
 %% ---- 再生 ----
 tf = t(end);  nF = max(2, round(tf/spd*fps));
@@ -114,6 +139,7 @@ for k = 1:nF
     ctr = tailP + (Lb/2)*bx;
     M = eye(4);  M(1:3,1:3) = [bx by bz];  M(1:3,4) = ctr;
     set(hT,'Matrix',M);
+    if closeOn, set(hTClose,'Matrix',M); end
     if isF9                                          % 脚 (展開アニメ)
         s = min(max((tq - tDeploy)/tDep, 0), 1);
         Xl=[];Yl=[];Zl=[];
@@ -128,13 +154,31 @@ for k = 1:nF
             Xl=[Xl pB(1) pT(1) NaN]; Yl=[Yl pB(2) pT(2) NaN]; Zl=[Zl pB(3) pT(3) NaN]; %#ok<AGROW>
         end
         set(hLegs,'XData',Xl,'YData',Yl,'ZData',Zl);
+        if closeOn, set(hLegsClose,'XData',Xl,'YData',Yl,'ZData',Zl); end
     end
     Lp = (0.4 + 3.2*trq)*Rb;
     set(hPlume,'XData',-Lb/2 - Lp*pz,'YData',Rb*0.8*px.*(1-0.5*pz),'ZData',Rb*0.8*py.*(1-0.5*pz));
     set(hPlume,'Visible', matlab.lang.OnOffSwitchState(trq > 0.02));
+    if closeOn
+        set(hPlumeClose,'XData',-Lb/2 - Lp*pz, ...
+            'YData',Rb*0.8*px.*(1-0.5*pz),'ZData',Rb*0.8*py.*(1-0.5*pz));
+        set(hPlumeClose,'Visible',matlab.lang.OnOffSwitchState(trq > 0.02));
+    end
     m = t <= tq;
     set(hTrail,'XData',[y(m) yq],'YData',zeros(1,sum(m)+1),'ZData',[h(m) hq]);
-    set(hTxt,'String',sprintf(' t=%.1fs  高度=%.0fm  スロットル=%.0f%%', tq, hq, trq*100));
+    txt = sprintf(' t=%.1fs  高度=%.0fm  スロットル=%.0f%%', tq, hq, trq*100);
+    set(hTxt,'String',txt);
+    if closeOn
+        set(hTrailClose,'XData',[y(m) yq], ...
+            'YData',zeros(1,sum(m)+1),'ZData',[h(m) hq]);
+        set(hTxtClose,'String',txt);
+        halfX = max(0.75*Lb,20);
+        halfY = max(3.0*Rb,0.25*Lb);
+        halfZ = max(0.75*Lb,25);
+        zlo = max(0,ctr(3)-halfZ);
+        set(closeAx,'XLim',ctr(1)+[-halfX halfX], ...
+            'YLim',[-halfY halfY],'ZLim',[zlo zlo+2*halfZ]);
+    end
     if orbit
         view(ax,[-40 + 20*tq/tf, 12 + 4*sin(pi*tq/tf)]);
     end

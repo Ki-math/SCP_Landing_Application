@@ -268,8 +268,10 @@ W.log = uitextarea(g,'Editable','off','Value',{'準備完了. まず [計画] �
 %% ================= 右: 表示タブ =================
 tg = uitabgroup(gm);
 tb1 = uitab(tg,'Title','アニメーション');
-ga = uigridlayout(tb1,[1 1],'Padding',[4 4 4 4]);
+ga = uigridlayout(tb1,[1 2],'ColumnWidth',{'3x','2x'}, ...
+    'Padding',[4 4 4 4],'ColumnSpacing',4);
 W.axAnim = uiaxes(ga);
+W.axAnimClose = uiaxes(ga);
 tb5 = uitab(tg,'Title','計画');
 gp5 = uigridlayout(tb5,[3 3],'RowHeight',{64,'1x','1x'},'Padding',[4 4 4 4],'RowSpacing',4,'ColumnSpacing',4);
 W.tdPlan = uitable(gp5,'Data',{},'RowName',{});
@@ -483,7 +485,8 @@ end
 
 function doAnim()
     try
-        aopt = struct('speed',W.spd.Value,'fps',20,'style',W.veh.Value);
+        aopt = struct('speed',W.spd.Value,'fps',20,'style',W.veh.Value, ...
+            'closeAx',W.axAnimClose);
         tg.SelectedTab = tb1;  drawnow;
         if strcmp(W.animSrc.Value,'閉ループ') && ~isempty(S.R)
             say('閉ループ飛行を再生...');
