@@ -4,7 +4,9 @@ function animateVehicleAx(ax, t, X, U, cfg, opt)
 %   ANIMATEVEHICLEAX(AX, T, X, U, CFG, OPT)
 %   AX  : 描画先 axes (uiaxes 可)
 %   T   : 1xN 時刻, X : 14xN 状態(物理), U : 7xN 制御(無次元)
-%   OPT : style ('starship'|'falcon9'), speed, fps, vehScale, legDeployAlt
+%   OPT : style ('starship'|'falcon9'), speed, fps, vehScale, legDeployAlt,
+%         orbit, pace, saveGif, gifFile
+%         vehScale=1 と orbit=false が既定 (実寸比・固定ビュー).
 %
 %   別ウィンドウを開かず AX に直接描画する. 尾部アンカー方式 (接地整合).
 %
@@ -13,10 +15,13 @@ if nargin < 6, opt = struct(); end
 gv = @(f,d) getf(opt,f,d);
 style = gv('style','starship');
 spd = gv('speed',4);  fps = gv('fps',20);
-isF9tmp = strcmp(style,'falcon9');
-vs  = gv('vehScale', 2.5*isF9tmp + 1.6*~isF9tmp);   % starshipは控えめ拡大
+vs  = gv('vehScale',1);
 hDep = gv('legDeployAlt',200);  tDep = 1.5;
 isF9 = strcmp(style,'falcon9');
+orbit = gv('orbit',false);
+paceOn = gv('pace',true);
+saveGif = gv('saveGif',false);
+gifFile = gv('gifFile','landing.gif');
 
 N = numel(t);
 if size(U,2) < N, U = [U, repmat(U(:,end),1,N-size(U,2))]; end
@@ -29,7 +34,7 @@ for k = 1:N
     th(k) = atan2(nose(3), nose(1));
 end
 thr = min(1, max(0, vecnorm(U(1:3,:))/(cfg.veh.thrustPerEng/cfg.Fs)));
-LbT = cfg.veh.Lb;  Lb = LbT*vs;  Rb = cfg.veh.R*vs*(1 + 0.6*isF9);
+LbT = cfg.veh.Lb;  Lb = LbT*vs;  Rb = cfg.veh.R*vs;
 kd = find(h <= hDep, 1);
 if isempty(kd), tDeploy = inf; else, tDeploy = t(kd); end
 
@@ -130,10 +135,26 @@ for k = 1:nF
     m = t <= tq;
     set(hTrail,'XData',[y(m) yq],'YData',zeros(1,sum(m)+1),'ZData',[h(m) hq]);
     set(hTxt,'String',sprintf(' t=%.1fs  高度=%.0fm  スロットル=%.0f%%', tq, hq, trq*100));
-    view(ax,[-40 + 20*tq/tf, 12 + 4*sin(pi*tq/tf)]);
+    if orbit
+        view(ax,[-40 + 20*tq/tf, 12 + 4*sin(pi*tq/tf)]);
+    end
     drawnow limitrate
-    while toc(tWall) < k/fps, pause(0.001); end      % 壁時計ペーシング
+    if paceOn && ~saveGif
+        while toc(tWall) < k/fps, pause(0.001); end  % 壁時計ペーシング
+    end
+    if saveGif
+        frame = getframe(ancestor(ax,'figure'));
+        [indexedFrame,colorMap] = rgb2ind(frame2im(frame),256);
+        if k == 1
+            imwrite(indexedFrame,colorMap,gifFile,'gif', ...
+                'LoopCount',inf,'DelayTime',1/fps);
+        else
+            imwrite(indexedFrame,colorMap,gifFile,'gif', ...
+                'WriteMode','append','DelayTime',1/fps);
+        end
+    end
 end
+if saveGif, fprintf('GIF 保存: %s\n', gifFile); end
 end
 
 function R = quat2R(q)

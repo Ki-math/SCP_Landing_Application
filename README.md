@@ -16,13 +16,29 @@ Starship（ベリーフロップ→フリップ着陸）と Falcon 9 級ブー�
 ## GUIプレビュー
 
 `scpApp` では、左側で機体・環境・制御・MCSを設定し、右側のタブで計画、
-閉ループ解析、風況、MCS、着陸アニメーションを確認できます。
+閉ループ解析、風況、MCS、着陸アニメーションを確認できます。下図は
+Starshipテンプレートと、保存済み計画軌道のフリップ着陸です。
 
 ![SCP Landing ToolkitのGUI](docs/media/scp_gui.png)
 
-Falcon 9級ブースタの閉ループ着陸例（着陸直前450 m、2倍速）:
+### 着陸アニメーション
+
+Starshipの計画軌道（ベリーフロップからフリップ着陸、8倍速）:
+
+![Starshipのフリップ着陸アニメーション](docs/media/starship_landing.gif)
+
+Falcon 9級ブースタの閉ループ着陸（着陸直前450 m、2倍速）:
 
 ![Falcon 9級ブースタの着陸アニメーション](docs/media/falcon9_landing.gif)
+
+両アニメーションとも機体は実寸比（`vehScale=1`）、視点は既定位置に固定しています。
+
+### モンテカルロ解析
+
+Falcon 9級ブースタの100ラン評価例です。成功判定は水平誤差20 m以下、
+接地速度8 m/s以下、傾斜5°以下で、成功率は98%でした。
+
+![Falcon 9級ブースタのMCS結果](docs/media/falcon9_mcs.png)
 
 ## 主な機能
 
@@ -80,8 +96,8 @@ setup
 scpApp
 ```
 
-README掲載用のGUI画像とアニメーションは、保存済みの閉ループ結果から再生成できます
-（最適化の再実行は不要）:
+README掲載用のGUI画像、アニメーション、MCS図は保存済み結果から再生成できます
+（最適化・MCSの再実行は不要）:
 
 ```matlab
 generateReadmeMedia

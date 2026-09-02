@@ -3,7 +3,8 @@ function animateFalcon9(P, cfg, opt)
 %
 %   ANIMATEFALCON9(P, CFG, OPT)
 %   P   : animate6DoF と同じ struct (t,y,h,theta,vy,vh,throttle,gimbal,m)
-%   OPT : speed(実時間比) fps saveGif gifFile orbit pace legDeployAlt
+%   OPT : speed(実時間比) fps saveGif gifFile orbit pace legDeployAlt vehScale
+%         vehScale=1 と orbit=false が既定 (実寸比・固定ビュー).
 %
 %   機体: 細身の円柱 + インターステージ黒帯 + グリッドフィン4枚 +
 %         ランディングギア4本 (既定: 高度200 m以下で約1.5秒かけて展開)
@@ -13,13 +14,13 @@ if nargin < 3, opt = struct(); end
 gv = @(f,d) getf(opt,f,d);
 spd = gv('speed',3);  fps = gv('fps',20);
 saveG = gv('saveGif',false);  gifF = gv('gifFile','falcon9_landing.gif');
-orbit = gv('orbit',true);  paceOn = gv('pace',true);
+orbit = gv('orbit',false);  paceOn = gv('pace',true);
 hDep = gv('legDeployAlt',200);           % ギア展開開始高度 [m]
 tDep = 1.5;                              % 展開所要時間 [s]
 
 LbTrue = cfg.veh.Lb;                                   % 実寸 (接地計算に使用)
-vs = gv('vehScale',3);
-Lb = LbTrue*vs;  Rb = cfg.veh.R*vs*1.6;                % 描画用拡大
+vs = gv('vehScale',1);
+Lb = LbTrue*vs;  Rb = cfg.veh.R*vs;
 %% 描画は「尾部の実高度」を基準にアンカーする. 重心基準のまま拡大すると
 %% 尾部が地面下に沈んで見える (実寸の尾部 = CG - LbTrue/2).
 tf = P.t(end);
